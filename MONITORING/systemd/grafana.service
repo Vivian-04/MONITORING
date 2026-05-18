@@ -1,0 +1,18 @@
+[Unit]
+Description=Grafana observability dashboard
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=monitoring
+Group=monitoring
+ExecStart=/opt/monitoring/grafana/bin/grafana-server \
+  --config=/opt/monitoring/grafana/conf/grafana.ini \
+  --homepath=/opt/monitoring/grafana
+WorkingDirectory=/opt/monitoring/grafana
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

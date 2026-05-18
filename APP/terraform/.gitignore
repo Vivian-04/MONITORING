@@ -1,0 +1,7 @@
+# Ignore local Terraform variable files with secrets
+terraform.tfvars
+*.tfvars
+
+# Ignore Terraform runtime files
+.terraform/
+.terraform.lock.hcl

@@ -1,0 +1,210 @@
+{
+  "uid": "slo",
+  "title": "SLO & Error Budget",
+  "tags": ["slo", "reliability"],
+  "timezone": "browser",
+  "refresh": "1m",
+  "time": {"from": "now-30d", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "title": "Availability SLI vs SLO (99.5%)",
+      "type": "gauge",
+      "gridPos": {"h": 8, "w": 8, "x": 0, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "avg_over_time(probe_success{job='blackbox-http'}[30d]) * 100",
+        "legendFormat": "Availability"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 99,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 99.5},
+              {"color": "green", "value": 99.9}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 2,
+      "title": "Error Budget Remaining %",
+      "type": "bargauge",
+      "gridPos": {"h": 8, "w": 8, "x": 8, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "clamp_min(((avg_over_time(probe_success{job='blackbox-http'}[30d]) - 0.995) / 0.005) * 100, 0)",
+        "legendFormat": "Budget %"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 25},
+              {"color": "green", "value": 50}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 3,
+      "title": "Error Budget Remaining (absolute time)",
+      "type": "stat",
+      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "clamp_min(((avg_over_time(probe_success{job='blackbox-http'}[30d]) - 0.995) / 0.005) * 216, 0)",
+        "legendFormat": "Minutes Remaining"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "m",
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 54},
+              {"color": "green", "value": 108}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 4,
+      "title": "Current Burn Rate (1h window)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 8, "x": 0, "y": 8},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "(1 - job:probe_success:rate1h) / 0.005",
+        "legendFormat": "Burn Rate"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 14.4}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 5,
+      "title": "Current Burn Rate (6h window)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 8, "x": 8, "y": 8},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "(1 - job:probe_success:rate6h) / 0.005",
+        "legendFormat": "Burn Rate"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 14.4}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 6,
+      "title": "7-Day SLO Compliance",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 8, "x": 16, "y": 8},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "avg_over_time(probe_success{job='blackbox-http'}[7d]) * 100",
+        "legendFormat": "7d Availability"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 99.5},
+              {"color": "green", "value": 99.9}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 7,
+      "title": "Burn Rate Over Time",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "(1 - job:probe_success:rate1h) / 0.005",
+          "legendFormat": "1h Burn Rate"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "(1 - job:probe_success:rate6h) / 0.005",
+          "legendFormat": "6h Burn Rate"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"thresholdsStyle": {"mode": "line"}},
+          "thresholds": {
+            "steps": [
+              {"color": "transparent", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 14.4}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "30-Day Availability History",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 20},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "avg_over_time(probe_success{job='blackbox-http'}[1h]) * 100",
+        "legendFormat": "Availability %"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {"thresholdsStyle": {"mode": "line"}},
+          "thresholds": {
+            "steps": [
+              {"color": "transparent", "value": null},
+              {"color": "red", "value": 99.5}
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "schemaVersion": 38
+}

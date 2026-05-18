@@ -1,0 +1,17 @@
+[Unit]
+Description=Alertmanager service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=monitoring
+Group=monitoring
+ExecStart=/opt/monitoring/bin/alertmanager \
+  --config.file=/opt/monitoring/alertmanager/alertmanager.yml \
+  --storage.path=/opt/monitoring/alertmanager/data
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

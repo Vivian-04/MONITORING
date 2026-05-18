@@ -1,0 +1,146 @@
+# ============================================================
+# otel-config.yml
+# Configures the OpenTelemetry Collector.
+#
+# The OTel Collector is a pipeline:
+#   RECEIVE data → PROCESS it → EXPORT to backends
+#
+# It receives traces and logs from instrumented services,
+# processes them, then forwards:
+#   Traces → Tempo
+#   Logs   → Loki
+# ============================================================
+
+receivers:
+  # ── OTLP Receiver ─────────────────────────────────────────
+  # Receives telemetry data in OpenTelemetry Protocol format.
+  # This is what instrumented services send data TO.
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+  # ── Filelog Receiver ──────────────────────────────────────
+  # Reads log files from disk and ships them to Loki.
+  # Used to collect Stage 5 app logs.
+  filelog:
+    include:
+      - /var/log/app/*.log
+    start_at: beginning
+    include_file_path: true
+    include_file_name: true
+    operators:
+      - type: regex_parser
+        regex: '^(?P<timestamp>[^ ]+ [^ ]+) (?P<severity>[^ ]+) (?P<body>.*)$'
+        timestamp:
+          parse_from: attributes.timestamp
+          layout: '%Y-%m-%d %H:%M:%S,%f'
+
+  # ── System Journald Receiver ─────────────────────────────
+  # Ingests local system journal logs from the host.
+  journald:
+    include_units:
+      - "*"
+    include_matches:
+      - ".*"
+    path: /run/log/journal
+
+processors:
+  # ── Batch Processor ───────────────────────────────────────
+  # Groups telemetry data into batches before exporting.
+  # More efficient than sending one item at a time.
+  batch:
+    timeout: 5s
+    send_batch_size: 1000
+
+  # ── Memory Limiter ────────────────────────────────────────
+  # Prevents the collector from using too much memory.
+  # Critical on our 3.7GB RAM server.
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 512
+    spike_limit_mib: 128
+
+  # ── Resource Processor ────────────────────────────────────
+  # Adds metadata to all telemetry data.
+  # Makes it easier to filter in Grafana.
+  resource:
+    attributes:
+      - action: insert
+        key: environment
+        value: production
+      - action: insert
+        key: team
+        value: devops
+    
+exporters:
+  # ── Tempo Exporter ────────────────────────────────────────
+  # Sends traces to Tempo using OTLP gRPC.
+  # Uses container name as hostname (same Docker network).
+  otlp/tempo:
+    endpoint: tempo:4317
+    tls:
+      insecure: true
+
+  # ── Loki Exporter ─────────────────────────────────────────
+  # Sends logs to Loki.
+  loki:
+    endpoint: http://loki:3100/loki/api/v1/push
+    default_labels_enabled:
+      exporter: false
+      job: true
+
+  # ── Debug Exporter ────────────────────────────────────────
+  # Prints telemetry to collector logs for debugging.
+  # Remove in production to avoid noise.
+  debug:
+    verbosity: basic
+
+extensions:
+  # ── Health Check ──────────────────────────────────────────
+  # Exposes a health endpoint for the collector itself.
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+  # ── Performance Monitor ───────────────────────────────────
+  # Exposes collector performance metrics.
+  pprof:
+    endpoint: 0.0.0.0:1777
+
+service:
+  extensions:
+    - health_check
+    - pprof
+
+  # ── Pipelines ─────────────────────────────────────────────
+  # A pipeline connects receivers → processors → exporters.
+  # We have two pipelines: one for traces, one for logs.
+  pipelines:
+
+    # Traces pipeline: receive → batch → send to Tempo
+    traces:
+      receivers:
+        - otlp
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - otlp/tempo
+        - debug
+
+    # Logs pipeline: receive → batch → send to Loki
+    logs:
+      receivers:
+        - otlp
+        - filelog
+        - journald
+      processors:
+        - memory_limiter
+        - resource
+        - batch
+      exporters:
+        - loki
+        - debug

@@ -1,0 +1,84 @@
+# ============================================================
+# datasources.yml
+# Tells Grafana how to connect to all three data sources.
+# This file is loaded automatically when Grafana starts.
+# No manual configuration in the UI needed — ever.
+# ============================================================
+
+apiVersion: 1
+
+# deleteDatasources removes datasources that were previously
+# provisioned but are no longer in this file.
+# Keeps Grafana clean if you rename or remove a datasource.
+deleteDatasources:
+  - name: Prometheus
+    orgId: 1
+  - name: Loki
+    orgId: 1
+  - name: Tempo
+    orgId: 1
+
+datasources:
+
+  # ── Prometheus ─────────────────────────────────────────────
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    orgId: 1
+    url: http://localhost:9090
+    isDefault: true
+    version: 1
+    editable: false
+    jsonData:
+      httpMethod: POST
+      exemplarTraceIdDestinations:
+        - name: traceID
+          datasourceUid: tempo
+          urlDisplayLabel: "View Trace in Tempo"
+
+  # ── Loki ───────────────────────────────────────────────────
+  - name: Loki
+    type: loki
+    access: proxy
+    orgId: 1
+    url: http://localhost:3100
+    version: 1
+    editable: false
+    jsonData:
+      derivedFields:
+        - datasourceUid: tempo
+          matcherRegex: "traceID=(\\w+)"
+          name: TraceID
+          url: "$${__value.raw}"
+          urlDisplayLabel: "View Trace in Tempo"
+
+  # ── Tempo ──────────────────────────────────────────────────
+  - name: Tempo
+    type: tempo
+    access: proxy
+    orgId: 1
+    url: http://localhost:3200
+    version: 1
+    editable: false
+    uid: tempo
+    jsonData:
+      httpMethod: GET
+      serviceMap:
+        datasourceUid: prometheus
+      nodeGraph:
+        enabled: true
+      traceQuery:
+        timeShiftEnabled: true
+        spanStartTimeShift: 1h
+        spanEndTimeShift: -1h
+      lokiSearch:
+        datasourceUid: loki
+      tracesToLogsV2:
+        datasourceUid: loki
+        spanStartTimeShift: -1m
+        spanEndTimeShift: 1m
+        tags:
+          - key: service.name
+            value: service
+        filterByTraceID: true
+        filterBySpanID: false

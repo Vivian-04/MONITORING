@@ -1,0 +1,237 @@
+# ============================================================
+# dora.yml
+# DORA Metrics — all 4 metrics defined as recording rules
+# then alert rules for when thresholds are breached.
+#
+# Recording rules calculate the metrics and store them
+# as new time series so the DORA dashboard can query them.
+# ============================================================
+
+groups:
+
+  # ── DORA Recording Rules ──────────────────────────────────
+  # These pre-compute the 4 DORA metrics every 5 minutes.
+  # The dashboard queries these stored results — not raw data.
+
+  - name: dora_recording_rules
+    interval: 5m
+    rules:
+
+      # ── 1. DEPLOYMENT FREQUENCY ───────────────────────────
+      # How often does the team deploy to production?
+      # We count successful GitHub Actions workflow runs.
+      # Elite:  Multiple times per day
+      # High:   Once per week
+      # Medium: Once per month
+      # Low:    Once every 6 months or less
+
+      - record: dora:deployment_frequency:daily
+        expr: |
+          increase(
+            github_actions_workflow_run_conclusion_total{
+              conclusion="success"
+            }[1d]
+          ) or vector(0)
+
+      - record: dora:deployment_frequency:weekly
+        expr: |
+          increase(
+            github_actions_workflow_run_conclusion_total{
+              conclusion="success"
+            }[7d]
+          ) or vector(0)
+
+      - record: dora:deployment_frequency:monthly
+        expr: |
+          increase(
+            github_actions_workflow_run_conclusion_total{
+              conclusion="success"
+            }[30d]
+          ) or vector(0)
+
+      # ── 2. LEAD TIME FOR CHANGES ──────────────────────────
+      # How long from code commit to production deployment?
+      # We measure total pipeline duration as a proxy.
+      # Elite:  Less than 1 hour (3600 seconds)
+      # High:   Less than 1 day (86400 seconds)
+      # Medium: Less than 1 week
+      # Low:    More than 1 week
+      #
+      # Sub-intervals tracked:
+      # - Commit to pipeline trigger (near zero with push triggers)
+      # - Pipeline trigger to pipeline complete (workflow duration)
+      # - Pipeline complete to deployment confirmed (deployment time)
+
+      - record: dora:lead_time:pipeline_duration_seconds
+        expr: |
+          avg(
+            github_actions_workflow_run_duration_seconds{
+              conclusion="success"
+            }
+          ) or vector(0)
+
+      - record: dora:lead_time:p50_seconds
+        expr: |
+          histogram_quantile(0.50,
+            rate(github_actions_workflow_run_duration_seconds_bucket{
+              conclusion="success"
+            }[7d])
+          ) or vector(0)
+
+      - record: dora:lead_time:p95_seconds
+        expr: |
+          histogram_quantile(0.95,
+            rate(github_actions_workflow_run_duration_seconds_bucket{
+              conclusion="success"
+            }[7d])
+          ) or vector(0)
+
+      # ── 3. CHANGE FAILURE RATE ────────────────────────────
+      # What percentage of deployments result in failure?
+      # Failed = workflow conclusion is "failure"
+      # Elite:  Less than 5%
+      # High:   Less than 10%
+      # Medium: Less than 15%
+      # Low:    15% or above
+
+      - record: dora:change_failure_rate:percentage
+        expr: |
+          (
+            sum(increase(
+              github_actions_workflow_run_conclusion_total{
+                conclusion="failure"
+              }[30d]
+            ))
+            /
+            sum(increase(
+              github_actions_workflow_run_conclusion_total[30d]
+            ))
+          ) * 100 or vector(0)
+
+      - record: dora:change_failure_rate:daily
+        expr: |
+          (
+            sum(increase(
+              github_actions_workflow_run_conclusion_total{
+                conclusion="failure"
+              }[1d]
+            ))
+            /
+            sum(increase(
+              github_actions_workflow_run_conclusion_total[1d]
+            ))
+          ) * 100 or vector(0)
+
+      # ── 4. MEAN TIME TO RESTORE ───────────────────────────
+      # How long does it take to recover from an incident?
+      # We measure how long alerts stay in firing state
+      # using Alertmanager metrics.
+      # Elite:  Less than 1 hour (3600 seconds)
+      # High:   Less than 1 day (86400 seconds)
+      # Medium: Less than 1 week
+      # Low:    More than 1 week
+      #
+      # This measures delta between alert firing and resolution.
+      # Manual intervention time is captured here — the longer
+      # an alert fires, the more manual work was needed.
+
+      - record: dora:mttr:average_seconds
+        expr: |
+          avg(alertmanager_alert_active_duration_seconds) or vector(0)
+
+      - record: dora:mttr:p50_seconds
+        expr: |
+          histogram_quantile(0.50,
+            rate(alertmanager_alert_active_duration_seconds_bucket[7d])
+          ) or vector(0)
+
+      - record: dora:mttr:p95_seconds
+        expr: |
+          histogram_quantile(0.95,
+            rate(alertmanager_alert_active_duration_seconds_bucket[7d])
+          ) or vector(0)
+
+  # ── DORA Alert Rules ──────────────────────────────────────
+  # These fire when DORA metrics breach acceptable thresholds.
+
+  - name: dora_alerts
+    rules:
+
+      # Alert when Change Failure Rate exceeds 15%
+      # 15% = DORA "Low" performer threshold
+      - alert: HighChangeFailureRate
+        expr: dora:change_failure_rate:percentage > 15
+        for: 5m
+        labels:
+          severity: warning
+          service: cicd
+          instance: github-actions
+        annotations:
+          summary: "High Change Failure Rate: {{ $value | printf \"%.1f\" }}%"
+          description: >
+            More than 15% of deployments in the last 30 days failed.
+            Current CFR: {{ $value | printf "%.1f" }}%.
+            Elite DORA benchmark is below 5%.
+            This indicates deployments are not being tested adequately
+            before reaching production.
+          value: "{{ $value | printf \"%.1f\" }}%"
+          dashboard_url: "http://localhost:3000/d/dora/dora-metrics"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/high-cfr.md"
+
+      # Alert when MTTR exceeds 1 hour (DORA Elite threshold)
+      - alert: HighMeanTimeToRestore
+        expr: dora:mttr:average_seconds > 3600
+        for: 5m
+        labels:
+          severity: warning
+          service: cicd
+          instance: alertmanager
+        annotations:
+          summary: "High MTTR: {{ $value | printf \"%.0f\" }}s"
+          description: >
+            Average incident resolution time exceeds 1 hour.
+            Current MTTR: {{ $value | printf "%.0f" }} seconds
+            ({{ $value | printf "%.1f" }} minutes).
+            Elite DORA benchmark is under 1 hour.
+            Document where manual intervention is adding time.
+          value: "{{ $value | printf \"%.0f\" }}s"
+          dashboard_url: "http://localhost:3000/d/dora/dora-metrics"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/high-mttr.md"
+
+      # Alert when workflow execution is slow
+      - alert: SlowWorkflowExecution
+        expr: dora:lead_time:p95_seconds > 3600
+        for: 10m
+        labels:
+          severity: warning
+          service: cicd
+          instance: github-actions
+        annotations:
+          summary: "Slow GitHub Actions execution: {{ $value | printf \"%.0f\" }}s"
+          description: >
+            GitHub Actions workflow duration at the 95th percentile is above 1 hour.
+            Current 95th percentile duration: {{ $value | printf "%.0f" }} seconds.
+            This indicates workflow execution is slow and may degrade deployment velocity.
+          value: "{{ $value | printf \"%.0f\" }}s"
+          dashboard_url: "http://localhost:3000/d/dora/dora-metrics"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slow-workflow-execution.md"
+
+      # Alert when no successful deployments in 7 days
+      # Indicates deployment pipeline may be broken
+      - alert: LowDeploymentFrequency
+        expr: dora:deployment_frequency:weekly == 0
+        for: 1h
+        labels:
+          severity: warning
+          service: cicd
+          instance: github-actions
+        annotations:
+          summary: "No deployments in the last 7 days"
+          description: >
+            No successful deployments recorded in the last 7 days.
+            This may indicate the deployment pipeline is broken
+            or the team has stopped shipping.
+            DORA Elite benchmark is multiple deployments per day.
+          value: "0 deployments"
+          dashboard_url: "http://localhost:3000/d/dora/dora-metrics"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/high-cfr.md"

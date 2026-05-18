@@ -1,0 +1,292 @@
+# ============================================================
+# slo.yml
+# Contains two sections:
+#   1. Four Golden Signals — recording rules for the 4 SLIs
+#   2. SLO burn rate alerts — fires when budget burns too fast
+# ============================================================
+
+groups:
+
+  # ══════════════════════════════════════════════════════════
+  # SECTION 1 — THE FOUR GOLDEN SIGNALS
+  # These are the 4 most important things to measure for any
+  # service. Defined by Google's SRE book.
+  # Each signal is a PromQL expression stored as a recording
+  # rule so dashboards and alerts can reuse them efficiently.
+  # ══════════════════════════════════════════════════════════
+
+  - name: four_golden_signals
+    interval: 15s
+    rules:
+
+      # ── SIGNAL 1: LATENCY ─────────────────────────────────
+      # How long does it take to serve a request?
+      # We distinguish successful vs error request latency.
+      #
+      # WHY LATENCY MATTERS:
+      # Users notice slowness above 500ms.
+      # Slow responses often indicate resource exhaustion
+      # or a downstream service problem.
+
+      # Successful request latency (p50 — median)
+      - record: golden:latency:p50
+        expr: |
+          histogram_quantile(0.50,
+            rate(probe_duration_seconds_bucket{
+              job="blackbox-http"
+            }[5m])
+          )
+
+      # Successful request latency (p95 — 95th percentile)
+      # This is what 95% of users experience or better.
+      # SLO target: this should be under 500ms (0.5s)
+      - record: golden:latency:p95
+        expr: |
+          histogram_quantile(0.95,
+            rate(probe_duration_seconds_bucket{
+              job="blackbox-http"
+            }[5m])
+          )
+
+      # Successful request latency (p99 — tail latency)
+      # Shows worst-case user experience
+      - record: golden:latency:p99
+        expr: |
+          histogram_quantile(0.99,
+            rate(probe_duration_seconds_bucket{
+              job="blackbox-http"
+            }[5m])
+          )
+
+      # Error request latency — how slow are FAILING requests?
+      # Usually higher than success latency because errors
+      # often involve retries, timeouts, or exception handling.
+      - record: golden:latency:errors_p95
+        expr: |
+          histogram_quantile(0.95,
+            rate(probe_duration_seconds_bucket{
+              job="blackbox-http"
+            }[5m])
+          ) * (1 - probe_success{job="blackbox-http"})
+
+      # ── SIGNAL 2: TRAFFIC ─────────────────────────────────
+      # How much demand is the system handling?
+      # Requests per second hitting the platform.
+      #
+      # WHY TRAFFIC MATTERS:
+      # A spike in errors during a traffic spike is normal.
+      # A spike in errors without a traffic spike is a bug.
+      # Traffic shows you the scale of the problem.
+
+      # Requests per second (all requests)
+      - record: golden:traffic:requests_per_second
+        expr: |
+          rate(probe_http_status_code{
+            job="blackbox-http"
+          }[5m])
+
+      # Requests per second from Blackbox probes
+      # Each Blackbox probe = one synthetic request
+      - record: golden:traffic:probe_rate
+        expr: |
+          rate(probe_success{
+            job="blackbox-http"
+          }[5m])
+
+      # ── SIGNAL 3: ERRORS ──────────────────────────────────
+      # What percentage of requests are failing?
+      # We track three types of errors:
+      #   Explicit:  HTTP 5xx responses
+      #   Implicit:  Probe failures (connection refused, timeout)
+      #   Policy:    Requests exceeding latency SLO threshold
+      #
+      # WHY ERRORS MATTER:
+      # Error rate directly measures user impact.
+      # 1% errors = 1 in 100 users gets a broken experience.
+
+      # Explicit errors — probe returning non-2xx
+      - record: golden:errors:rate
+        expr: |
+          1 - avg(probe_success{job="blackbox-http"})
+
+      # Error percentage (0-100 scale for dashboards)
+      - record: golden:errors:percentage
+        expr: |
+          (1 - avg(probe_success{job="blackbox-http"})) * 100
+
+      # Policy failures — requests exceeding 500ms latency SLO
+      # These are not HTTP errors but still failures from user perspective
+      - record: golden:errors:latency_slo_violations
+        expr: |
+          histogram_quantile(0.95,
+            rate(probe_duration_seconds_bucket{
+              job="blackbox-http"
+            }[5m])
+          ) > 0.5
+
+      # ── SIGNAL 4: SATURATION ──────────────────────────────
+      # How close is the service to its capacity limit?
+      # We measure CPU, memory, disk, and network.
+      #
+      # WHY SATURATION MATTERS:
+      # Saturation predicts future problems BEFORE they happen.
+      # At 90% CPU you are about to have a problem.
+      # At 100% CPU you already have one.
+
+      # CPU saturation — how busy is the processor?
+      - record: golden:saturation:cpu_percent
+        expr: |
+          (1 - avg by(instance) (
+            rate(node_cpu_seconds_total{mode="idle"}[5m])
+          )) * 100
+
+      # Memory saturation — how full is RAM?
+      - record: golden:saturation:memory_percent
+        expr: |
+          (1 - (
+            node_memory_MemAvailable_bytes /
+            node_memory_MemTotal_bytes
+          )) * 100
+
+      # Disk saturation — how full is disk?
+      - record: golden:saturation:disk_percent
+        expr: |
+          (1 - (
+            node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} /
+            node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"}
+          )) * 100
+
+      # Network saturation — how busy is the network interface?
+      - record: golden:saturation:network_receive_bytes
+        expr: |
+          rate(node_network_receive_bytes_total{
+            device!~"lo|docker.*|veth.*"
+          }[5m])
+
+      - record: golden:saturation:network_transmit_bytes
+        expr: |
+          rate(node_network_transmit_bytes_total{
+            device!~"lo|docker.*|veth.*"
+          }[5m])
+
+  # ══════════════════════════════════════════════════════════
+  # SECTION 2 — SLO RECORDING RULES
+  # Pre-compute availability rates over multiple time windows.
+  # Used by burn rate alerts and SLO dashboard.
+  # ══════════════════════════════════════════════════════════
+
+  - name: slo_recording_rules
+    interval: 30s
+    rules:
+
+      - record: job:probe_success:rate5m
+        expr: rate(probe_success{job="blackbox-http"}[5m])
+
+      - record: job:probe_success:rate1h
+        expr: rate(probe_success{job="blackbox-http"}[1h])
+
+      - record: job:probe_success:rate6h
+        expr: rate(probe_success{job="blackbox-http"}[6h])
+
+      - record: job:probe_success:rate24h
+        expr: rate(probe_success{job="blackbox-http"}[24h])
+
+      - record: job:probe_success:rate30d
+        expr: rate(probe_success{job="blackbox-http"}[30d])
+
+  # ══════════════════════════════════════════════════════════
+  # SECTION 3 — SLO ALERT RULES
+  # Uses the recording rules above to detect budget burn.
+  # ══════════════════════════════════════════════════════════
+
+  - name: slo_alerts
+    rules:
+
+      # Fast Burn — 14.4x burn rate
+      # 2% of monthly budget consumed in 1 hour
+      - alert: SloBurnRateFast
+        expr: |
+          (
+            (1 - job:probe_success:rate1h) > (14.4 * 0.005)
+          )
+          and
+          (
+            (1 - job:probe_success:rate5m) > (14.4 * 0.005)
+          )
+        for: 2m
+        labels:
+          severity: critical
+          service: availability
+          slo: "99.5"
+        annotations:
+          summary: "CRITICAL: Fast SLO burn rate detected"
+          description: >
+            Consuming error budget 14.4x faster than normal.
+            The entire 30-day budget will be exhausted in ~2 hours.
+            Immediate action required.
+          value: "{{ $value | printf \"%.4f\" }}"
+          dashboard_url: "http://localhost:3000/d/slo/slo-error-budget"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slo-fast-burn.md"
+
+      # Slow Burn — 5x burn rate
+      # 5% of monthly budget consumed in 6 hours
+      - alert: SloBurnRateSlow
+        expr: |
+          (
+            (1 - job:probe_success:rate6h) > (5 * 0.005)
+          )
+          and
+          (
+            (1 - job:probe_success:rate1h) > (5 * 0.005)
+          )
+        for: 15m
+        labels:
+          severity: warning
+          service: availability
+          slo: "99.5"
+        annotations:
+          summary: "WARNING: Slow SLO burn rate detected"
+          description: >
+            Consuming error budget 5x faster than normal.
+            The entire 30-day budget will be exhausted in ~6 days.
+            Needs attention before it escalates.
+          value: "{{ $value | printf \"%.4f\" }}"
+          dashboard_url: "http://localhost:3000/d/slo/slo-error-budget"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slo-slow-burn.md"
+
+      # Error Budget Exhausted
+      - alert: SloErrorBudgetExhausted
+        expr: |
+          (1 - job:probe_success:rate30d) > 0.005
+        for: 5m
+        labels:
+          severity: critical
+          service: availability
+          slo: "99.5"
+        annotations:
+          summary: "SLO ERROR BUDGET EXHAUSTED"
+          description: >
+            The 30-day error budget is fully consumed.
+            Current availability below 99.5% SLO target.
+            Feature freeze should be considered per error budget policy.
+          value: "{{ $value | printf \"%.4f\" }}"
+          dashboard_url: "http://localhost:3000/d/slo/slo-error-budget"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slo-fast-burn.md"
+
+      # Latency SLO breach
+      - alert: SloLatencyBurnRate
+        expr: golden:latency:p95 > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: latency
+          slo: "95th-percentile-500ms"
+        annotations:
+          summary: "Latency SLO at risk on {{ $labels.instance }}"
+          description: >
+            The 95th percentile response time has exceeded 500ms.
+            SLO target is 95% of requests under 500ms.
+            Current p95: {{ $value | printf "%.3f" }}s
+          value: "{{ $value | printf \"%.3f\" }}s"
+          dashboard_url: "http://localhost:3000/d/blackbox/blackbox-exporter"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slo-slow-burn.md"

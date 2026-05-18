@@ -1,0 +1,16 @@
+# Terraform state and secrets
+terraform.tfvars
+.terraform/
+.terraform.lock.hcl
+terraform.tfstate
+terraform.tfstate.backup
+*.tfstate
+*.tfstate.*
+
+# Generated files from templates
+prometheus/prometheus.yml
+alertmanager/alertmanager.yml
+.env
+
+# Logs
+*.log

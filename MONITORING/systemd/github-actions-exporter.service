@@ -1,0 +1,18 @@
+[Unit]
+Description=GitHub Actions Prometheus exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=monitoring
+Group=monitoring
+EnvironmentFile=-/opt/monitoring/.env
+ExecStart=/opt/monitoring/github-actions-exporter/venv/bin/python \
+  /opt/monitoring/github-actions-exporter/exporter.py
+WorkingDirectory=/opt/monitoring/github-actions-exporter
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

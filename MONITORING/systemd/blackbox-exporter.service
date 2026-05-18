@@ -1,0 +1,17 @@
+[Unit]
+Description=Prometheus Blackbox Exporter
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=monitoring
+Group=monitoring
+ExecStart=/opt/monitoring/bin/blackbox_exporter \
+  --config.file=/opt/monitoring/blackbox/blackbox.yml
+WorkingDirectory=/opt/monitoring/blackbox
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

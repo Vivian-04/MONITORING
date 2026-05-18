@@ -1,0 +1,24 @@
+# ============================================================
+# dashboards.yml
+# Tells Grafana WHERE to find dashboard JSON files.
+# Grafana reads this on startup and loads all dashboards
+# from the specified folder automatically.
+# No manual dashboard import needed — ever.
+# ============================================================
+
+apiVersion: 1
+
+providers:
+
+  # ── Main Dashboard Provider ────────────────────────────────
+  - name: 'observability-dashboards'
+    orgId: 1
+    folder: 'Observability'
+    folderUid: 'observability'
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

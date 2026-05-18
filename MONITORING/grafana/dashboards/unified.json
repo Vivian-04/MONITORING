@@ -1,0 +1,148 @@
+{
+  "uid": "unified",
+  "title": "Unified Observability — Four Golden Signals + Logs + Traces",
+  "tags": ["unified", "correlation", "golden-signals"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "title": "SIGNAL 1: Latency (p50 / p95 / p99) — SLO: p95 < 500ms",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "golden:latency:p50",
+          "legendFormat": "p50 (median)"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "golden:latency:p95",
+          "legendFormat": "p95 (SLO target)"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "golden:latency:p99",
+          "legendFormat": "p99 (tail)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {"thresholdsStyle": {"mode": "line"}},
+          "thresholds": {
+            "steps": [
+              {"color": "transparent", "value": null},
+              {"color": "red", "value": 0.5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "title": "SIGNAL 2: Traffic (requests per second)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "golden:traffic:probe_rate",
+        "legendFormat": "Requests/sec"
+      }],
+      "fieldConfig": {"defaults": {"unit": "reqps"}}
+    },
+    {
+      "id": 3,
+      "title": "SIGNAL 3: Errors (%) — SLO: < 0.5%",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "golden:errors:percentage",
+        "legendFormat": "Error Rate %"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {"thresholdsStyle": {"mode": "line"}},
+          "thresholds": {
+            "steps": [
+              {"color": "transparent", "value": null},
+              {"color": "red", "value": 0.5}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "SIGNAL 4: Saturation (CPU / Memory / Disk %)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "golden:saturation:cpu_percent",
+          "legendFormat": "CPU %"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "golden:saturation:memory_percent",
+          "legendFormat": "Memory %"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "golden:saturation:disk_percent",
+          "legendFormat": "Disk %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {"thresholdsStyle": {"mode": "line"}},
+          "thresholds": {
+            "steps": [
+              {"color": "transparent", "value": null},
+              {"color": "yellow", "value": 80},
+              {"color": "red", "value": 90}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Application Logs — click traceID to open in Tempo",
+      "type": "logs",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 16},
+      "targets": [{
+        "datasource": "Loki",
+        "expr": "{env=\"prod\"}",
+        "legendFormat": ""
+      }],
+      "options": {
+        "showTime": true,
+        "showLabels": true,
+        "showCommonLabels": false,
+        "wrapLogMessage": true,
+        "enableLogDetails": true,
+        "dedupStrategy": "none",
+        "sortOrder": "Descending"
+      }
+    },
+    {
+      "id": 6,
+      "title": "Trace Search — find the trace causing the spike",
+      "type": "traces",
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 26},
+      "targets": [{
+        "datasource": "Tempo",
+        "queryType": "nativeSearch",
+        "legendFormat": ""
+      }]
+    }
+  ],
+  "schemaVersion": 38
+}

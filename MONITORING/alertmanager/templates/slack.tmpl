@@ -1,0 +1,63 @@
+{{/* ============================================================
+     slack.tmpl
+     Custom Slack message templates for Alertmanager.
+     These define exactly what every Slack notification looks like.
+     Uses Go templating syntax.
+     ============================================================ */}}
+
+{{/* ── Title ─────────────────────────────────────────────────
+     Shows the alert status (FIRING/RESOLVED) and alert name.
+     Example: "[FIRING] HighCpuWarning"
+*/}}
+{{ define "slack.title" -}}
+  [{{ .Status | toUpper }}{{ if eq .Status "firing" }}:{{ .Alerts.Firing | len }}{{ end }}]
+  {{ range .GroupLabels.SortedPairs }} {{ .Name }}={{ .Value }} {{ end }}
+{{- end }}
+
+{{/* ── Color ──────────────────────────────────────────────────
+     Sets the colored sidebar on the Slack message.
+     Red for firing, Green for resolved, Yellow for warning.
+*/}}
+{{ define "slack.color" -}}
+  {{ if eq .Status "resolved" -}}
+    good
+  {{ else if eq (index .GroupLabels "severity") "critical" -}}
+    danger
+  {{ else -}}
+    warning
+  {{ end -}}
+{{- end }}
+
+{{/* ── Body ───────────────────────────────────────────────────
+     The main message body. Shows details for each alert.
+     Includes: summary, description, labels, value, and timing.
+*/}}
+{{ define "slack.body" -}}
+  {{ range .Alerts }}
+*Alert:* {{ .Annotations.summary }}
+*Status:* `{{ .Status | toUpper }}`
+*Severity:* `{{ .Labels.severity }}`
+{{ if .Labels.instance }}*Host:* `{{ .Labels.instance }}`{{ end }}
+{{ if .Labels.service }}*Service:* `{{ .Labels.service }}`{{ end }}
+*Description:* {{ .Annotations.description }}
+*Value:* `{{ .Annotations.value }}`
+*Started:* {{ .StartsAt | since }}
+{{ if .EndsAt }}*Resolved:* {{ .EndsAt | since }}{{ end }}
+  {{ end }}
+{{- end }}
+
+{{/* ── Dashboard URL ──────────────────────────────────────────
+     Extracts the dashboard URL from alert annotations.
+     Used for the "View Dashboard" button.
+*/}}
+{{ define "slack.dashboard_url" -}}
+  {{ (index .Alerts 0).Annotations.dashboard_url }}
+{{- end }}
+
+{{/* ── Runbook URL ─────────────────────────────────────────────
+     Extracts the runbook URL from alert annotations.
+     Used for the "View Runbook" button.
+*/}}
+{{ define "slack.runbook_url" -}}
+  {{ (index .Alerts 0).Annotations.runbook_url }}
+{{- end }}

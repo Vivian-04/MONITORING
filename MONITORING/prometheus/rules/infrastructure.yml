@@ -1,0 +1,133 @@
+# ============================================================
+# infrastructure.yml
+# Alert rules for system-level metrics.
+# Prometheus evaluates these every 15 seconds.
+# When a rule fires, the alert goes to Alertmanager
+# which routes it to Slack.
+# ============================================================
+
+groups:
+  - name: infrastructure
+    rules:
+
+      # ── CPU Alerts ────────────────────────────────────────
+
+      - alert: HighCpuWarning
+        expr: |
+          (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High CPU usage on {{ $labels.instance }}"
+          description: "CPU usage has been above 80% for more than 5 minutes."
+          value: "{{ $value | printf \"%.2f\" }}%"
+          dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/cpu-warning.md"
+
+      - alert: HighCpuCritical
+        expr: |
+          (1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100 > 90
+        for: 10m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Critical CPU usage on {{ $labels.instance }}"
+          description: "CPU usage has been above 90% for more than 10 minutes."
+          value: "{{ $value | printf \"%.2f\" }}%"
+          dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/cpu-critical.md"
+
+      # ── Memory Alerts ─────────────────────────────────────
+
+      - alert: HighMemoryWarning
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High memory usage on {{ $labels.instance }}"
+          description: "Memory usage has been above 80% for more than 5 minutes."
+          value: "{{ $value | printf \"%.2f\" }}%"
+          dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/memory-warning.md"
+
+      - alert: HighMemoryCritical
+        expr: |
+          (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Critical memory usage on {{ $labels.instance }}"
+          description: "Memory usage has been above 90% for more than 5 minutes."
+          value: "{{ $value | printf \"%.2f\" }}%"
+          dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/memory-critical.md"
+
+      # ── Disk Alerts ───────────────────────────────────────
+
+      - alert: HighDiskWarning
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} /
+          node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"})) * 100 > 75
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High disk usage on {{ $labels.instance }}"
+          description: "Disk usage on {{ $labels.mountpoint }} has been above 75%."
+          value: "{{ $value | printf \"%.2f\" }}%"
+          dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/disk-warning.md"
+
+      - alert: HighDiskCritical
+        expr: |
+          (1 - (node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} /
+          node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"})) * 100 > 90
+        for: 5m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Critical disk usage on {{ $labels.instance }}"
+          description: "Disk usage on {{ $labels.mountpoint }} has been above 90%."
+          value: "{{ $value | printf \"%.2f\" }}%"
+          dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/disk-critical.md"
+
+      # ── Server Down Alert ─────────────────────────────────
+
+      - alert: ServerDown
+        expr: |
+          probe_success{job="blackbox-http"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: infrastructure
+        annotations:
+          summary: "Server down: {{ $labels.instance }}"
+          description: "Blackbox probe has been failing for more than 2 minutes."
+          value: "probe_success=0"
+          dashboard_url: "http://localhost:3000/d/blackbox/blackbox-exporter"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/server-down.md"
+
+      - alert: ServerRecovered
+        expr: |
+          probe_success{job="blackbox-http"} == 1
+        for: 1m
+        labels:
+          severity: info
+          service: infrastructure
+        annotations:
+          summary: "Server recovered: {{ $labels.instance }}"
+          description: "Blackbox probe is now succeeding."
+          value: "probe_success=1"
+          dashboard_url: "http://localhost:3000/d/blackbox/blackbox-exporter"
+          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/server-down.md"

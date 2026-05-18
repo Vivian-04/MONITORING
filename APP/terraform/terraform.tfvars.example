@@ -1,0 +1,6 @@
+# Example Terraform variables for the monitoring server deployment.
+
+app_host = "10.0.0.5"
+slack_webhook_url = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
+grafana_admin_user = "admin"
+grafana_admin_password = "admin"

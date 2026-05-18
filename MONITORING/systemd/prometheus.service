@@ -1,0 +1,18 @@
+[Unit]
+Description=Prometheus monitoring service
+Wants=network-online.target alertmanager.service grafana.service loki.service tempo.service node-exporter.service blackbox-exporter.service github-actions-exporter.service
+After=network-online.target alertmanager.service grafana.service loki.service tempo.service node-exporter.service blackbox-exporter.service github-actions-exporter.service
+
+[Service]
+User=monitoring
+Group=monitoring
+ExecStart=/opt/monitoring/bin/prometheus \
+  --config.file=/opt/monitoring/prometheus/prometheus.yml \
+  --storage.tsdb.path=/opt/monitoring/prometheus/data \
+  --web.listen-address=0.0.0.0:9090
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target

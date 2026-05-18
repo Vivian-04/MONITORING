@@ -1,0 +1,143 @@
+{
+  "uid": "blackbox",
+  "title": "Blackbox Exporter - Uptime & Latency",
+  "tags": ["infrastructure", "blackbox"],
+  "timezone": "browser",
+  "refresh": "30s",
+  "time": {"from": "now-1h", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "title": "Probe Success Rate",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 0, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "avg(probe_success{job='blackbox-http'}) * 100",
+        "legendFormat": "Success Rate"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 95},
+              {"color": "green", "value": 99}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 2,
+      "title": "Response Time p50",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 6, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.50, rate(probe_duration_seconds_bucket{job='blackbox-http'}[5m]))",
+        "legendFormat": "p50"
+      }],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 3,
+      "title": "Response Time p90",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 12, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.90, rate(probe_duration_seconds_bucket{job='blackbox-http'}[5m]))",
+        "legendFormat": "p90"
+      }],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 4,
+      "title": "Response Time p99",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 6, "x": 18, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "histogram_quantile(0.99, rate(probe_duration_seconds_bucket{job='blackbox-http'}[5m]))",
+        "legendFormat": "p99"
+      }],
+      "fieldConfig": {"defaults": {"unit": "s"}},
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 5,
+      "title": "Uptime Timeline",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 4},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "probe_success{job='blackbox-http'}",
+        "legendFormat": "{{instance}}"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "green", "value": 1}
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Response Time Over Time",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 12},
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.50, rate(probe_duration_seconds_bucket{job='blackbox-http'}[5m]))",
+          "legendFormat": "p50 {{instance}}"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.90, rate(probe_duration_seconds_bucket{job='blackbox-http'}[5m]))",
+          "legendFormat": "p90 {{instance}}"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "histogram_quantile(0.99, rate(probe_duration_seconds_bucket{job='blackbox-http'}[5m]))",
+          "legendFormat": "p99 {{instance}}"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "s"}}
+    },
+    {
+      "id": 7,
+      "title": "SSL Certificate Expiry (days)",
+      "type": "stat",
+      "gridPos": {"h": 4, "w": 12, "x": 0, "y": 20},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "(probe_ssl_earliest_cert_expiry{job='blackbox-http'} - time()) / 86400",
+        "legendFormat": "{{instance}}"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "d",
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 14},
+              {"color": "green", "value": 30}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    }
+  ],
+  "schemaVersion": 38
+}

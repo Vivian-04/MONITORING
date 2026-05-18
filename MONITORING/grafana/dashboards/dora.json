@@ -1,0 +1,157 @@
+{
+  "uid": "dora",
+  "title": "DORA Metrics",
+  "tags": ["dora", "engineering"],
+  "timezone": "browser",
+  "refresh": "5m",
+  "time": {"from": "now-30d", "to": "now"},
+  "panels": [
+    {
+      "id": 1,
+      "title": "Deployment Frequency (30 days)",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "increase(github_actions_workflow_run_conclusion_total{conclusion='success'}[30d]) or vector(0)",
+        "legendFormat": "Deployments"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "thresholds": {
+            "steps": [
+              {"color": "red", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "green", "value": 7}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 2,
+      "title": "Change Failure Rate %",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 6, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "(sum(increase(github_actions_workflow_run_conclusion_total{conclusion='failure'}[30d])) / sum(increase(github_actions_workflow_run_conclusion_total[30d]))) * 100 or vector(0)",
+        "legendFormat": "CFR %"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 5},
+              {"color": "red", "value": 15}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 3,
+      "title": "MTTR (seconds)",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "avg(alertmanager_alert_active_duration_seconds) or vector(0)",
+        "legendFormat": "MTTR"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 3600},
+              {"color": "red", "value": 86400}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 7,
+      "title": "Lead Time p95 (seconds)",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 6, "x": 18, "y": 0},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "dora:lead_time:p95_seconds",
+        "legendFormat": "Lead Time p95"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 3600},
+              {"color": "red", "value": 86400}
+            ]
+          }
+        }
+      },
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"]}}
+    },
+    {
+      "id": 4,
+      "title": "DORA Benchmarks",
+      "type": "text",
+      "gridPos": {"h": 6, "w": 12, "x": 0, "y": 14},
+      "options": {
+        "mode": "markdown",
+        "content": "## Performance Classification\n\n| | Elite | High | Med | Low |\n|---|---|---|---|---|\n| **Deploy** | >1/day | >1/wk | >1/mo | <1/6mo |\n| **Lead** | <1hr | <1wk | <1mo | >6mo |\n| **CFR** | <5% | <10% | <15% | >15% |\n| **MTTR** | <1hr | <1day | <1wk | >1wk |"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Deployment Frequency Over Time",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 6},
+      "targets": [
+        {
+          "datasource": "Prometheus",
+          "expr": "increase(github_actions_workflow_run_conclusion_total{conclusion='success'}[1d]) or vector(0)",
+          "legendFormat": "Successful Deployments"
+        },
+        {
+          "datasource": "Prometheus",
+          "expr": "increase(github_actions_workflow_run_conclusion_total{conclusion='failure'}[1d]) or vector(0)",
+          "legendFormat": "Failed Deployments"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Change Failure Rate Over Time",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 6},
+      "targets": [{
+        "datasource": "Prometheus",
+        "expr": "(sum(increase(github_actions_workflow_run_conclusion_total{conclusion='failure'}[1d])) / sum(increase(github_actions_workflow_run_conclusion_total[1d]))) * 100 or vector(0)",
+        "legendFormat": "CFR %"
+      }],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "custom": {"thresholdsStyle": {"mode": "line"}},
+          "thresholds": {
+            "steps": [
+              {"color": "transparent", "value": null},
+              {"color": "red", "value": 15}
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "schemaVersion": 38
+}

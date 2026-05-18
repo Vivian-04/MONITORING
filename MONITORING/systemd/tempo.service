@@ -1,0 +1,17 @@
+[Unit]
+Description=Tempo tracing storage service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+User=monitoring
+Group=monitoring
+ExecStart=/opt/monitoring/bin/tempo \
+  --config.file=/opt/monitoring/tempo/tempo-config.yml
+WorkingDirectory=/opt/monitoring/tempo
+Restart=always
+RestartSec=5
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
