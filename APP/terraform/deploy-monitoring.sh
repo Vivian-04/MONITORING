@@ -12,6 +12,17 @@ fi
 read -rp "SSH user for monitoring server [root]: " SSH_USER
 SSH_USER=${SSH_USER:-root}
 
+read -rsp "SSH password for monitoring server user: " SSH_PASSWORD
+echo
+if [ -z "${SSH_PASSWORD}" ]; then
+  echo "ERROR: SSH password cannot be empty."
+  exit 1
+fi
+
+read -rsp "Sudo password for monitoring server user [same as SSH password]: " SUDO_PASSWORD
+echo
+SUDO_PASSWORD=${SUDO_PASSWORD:-$SSH_PASSWORD}
+
 read -rp "Application server host or IP to monitor: " APP_HOST
 if [ -z "${APP_HOST}" ]; then
   echo "ERROR: app host cannot be empty."
@@ -45,12 +56,15 @@ GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
 
 terraform init
 
+export TF_VAR_ssh_password="${SSH_PASSWORD}"
+export TF_VAR_sudo_password="${SUDO_PASSWORD}"
+export TF_VAR_slack_webhook_url="${SLACK_WEBHOOK_URL}"
+export TF_VAR_github_token="${GITHUB_TOKEN}"
+
 terraform apply -auto-approve \
   -var="monitoring_host=${MONITORING_HOST}" \
   -var="ssh_user=${SSH_USER}" \
   -var="app_host=${APP_HOST}" \
-  -var="slack_webhook_url=${SLACK_WEBHOOK_URL}" \
   -var="github_repository=${GITHUB_REPOSITORY}" \
-  -var="github_token=${GITHUB_TOKEN}" \
   -var="grafana_admin_user=${GRAFANA_ADMIN_USER}" \
   -var="grafana_admin_password=${GRAFANA_ADMIN_PASSWORD}"

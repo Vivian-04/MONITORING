@@ -16,6 +16,8 @@ Terraform will ask for:
 
 - `monitoring_host`: IP or hostname of the monitoring server
 - `ssh_user`: SSH user for the monitoring server, default `root`
+- `ssh_password`: SSH password for the monitoring server user
+- `sudo_password`: sudo password, or leave empty to reuse `ssh_password`
 - `app_host`: IP or hostname of the existing application server
 - `slack_webhook_url`: Slack webhook for `#DevOps-Alerts`
 - `github_repository`: repository to collect GitHub Actions metrics from, in `owner/repo` format
@@ -27,6 +29,13 @@ You can also run the bootstrap directly:
 ```bash
 cd APP
 ./deploy-monitoring-ssh.sh
+```
+
+Password-based SSH deployment requires `sshpass` on the machine running Terraform:
+
+```bash
+sudo apt update
+sudo apt install -y sshpass
 ```
 
 ## Architecture

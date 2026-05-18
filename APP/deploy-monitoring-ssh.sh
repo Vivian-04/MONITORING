@@ -16,16 +16,51 @@ if [ -z "${SSH_USER:-}" ]; then
 fi
 SSH_USER=${SSH_USER:-root}
 
-if [ "$SSH_USER" != "root" ]; then
-  echo "Using non-root SSH user: ${SSH_USER}. Remote sudo privileges are required."
-  REMOTE_SUDO="sudo"
-  if ! ssh "${SSH_USER}@${MON_HOST}" "sudo -n true" >/dev/null 2>&1; then
-    echo "ERROR: SSH user ${SSH_USER} does not have passwordless sudo access on the remote host."
-    exit 1
-  fi
-else
-  REMOTE_SUDO=""
+if [ -z "${SSH_PASSWORD:-}" ]; then
+  read -rsp "SSH password for monitoring server user: " SSH_PASSWORD
+  echo
 fi
+if [ -z "$SSH_PASSWORD" ]; then
+  echo "ERROR: SSH password cannot be empty."
+  exit 1
+fi
+
+if [ -z "${SUDO_PASSWORD:-}" ]; then
+  SUDO_PASSWORD=$SSH_PASSWORD
+fi
+
+if ! command -v sshpass >/dev/null 2>&1; then
+  echo "ERROR: sshpass is required for password-based SSH deployment."
+  echo "Install it on the machine running Terraform, for example: sudo apt install -y sshpass"
+  exit 1
+fi
+
+quote_for_remote() {
+  printf "%s" "$1" | sed "s/'/'\\\\''/g"
+}
+
+remote_exec_raw() {
+  SSHPASS=$SSH_PASSWORD sshpass -e ssh \
+    -o StrictHostKeyChecking=accept-new \
+    -o PreferredAuthentications=password \
+    -o PubkeyAuthentication=no \
+    "${SSH_USER}@${MON_HOST}" "$1"
+}
+
+remote_exec_root() {
+  local command=$1
+  local escaped_command
+  local escaped_sudo_password
+
+  escaped_command=$(quote_for_remote "$command")
+
+  if [ "$SSH_USER" = "root" ]; then
+    remote_exec_raw "bash -lc '$escaped_command'"
+  else
+    escaped_sudo_password=$(quote_for_remote "$SUDO_PASSWORD")
+    remote_exec_raw "printf '%s\n' '$escaped_sudo_password' | sudo -S -p '' bash -lc '$escaped_command'"
+  fi
+}
 
 if [ -z "${APP_HOST:-}" ]; then
   read -rp "Application server host or IP to monitor [auto-detect]: " APP_HOST
@@ -80,27 +115,27 @@ REMOTE_REPO=https://github.com/Vivian-04/MONITORING.git
 
 echo "Connecting to monitoring server ${SSH_USER}@${MON_HOST}..."
 
-ssh "${SSH_USER}@${MON_HOST}" "${REMOTE_SUDO:+$REMOTE_SUDO }mkdir -p ${REMOTE_DIR}"
+remote_exec_root "mkdir -p ${REMOTE_DIR}"
 
-ssh "${SSH_USER}@${MON_HOST}" "${REMOTE_SUDO:+$REMOTE_SUDO }apt update -y && ${REMOTE_SUDO:+$REMOTE_SUDO }apt install -y git"
+remote_exec_root "apt update -y && apt install -y git python3 python3-venv gettext-base curl wget tar gzip unzip"
 
-ssh "${SSH_USER}@${MON_HOST}" "${REMOTE_SUDO:+$REMOTE_SUDO }rm -rf ${REMOTE_DIR}/*"
-ssh "${SSH_USER}@${MON_HOST}" "${REMOTE_SUDO:+$REMOTE_SUDO }rm -rf ${REMOTE_CLONE_DIR}"
-ssh "${SSH_USER}@${MON_HOST}" "${REMOTE_SUDO:+$REMOTE_SUDO }git clone ${REMOTE_REPO} ${REMOTE_CLONE_DIR}"
-ssh "${SSH_USER}@${MON_HOST}" "${REMOTE_SUDO:+$REMOTE_SUDO }cp -a ${REMOTE_CLONE_DIR}/MONITORING/. ${REMOTE_DIR}/"
-ssh "${SSH_USER}@${MON_HOST}" "${REMOTE_SUDO:+$REMOTE_SUDO }rm -rf ${REMOTE_CLONE_DIR}"
+remote_exec_root "rm -rf ${REMOTE_DIR:?}/*"
+remote_exec_root "rm -rf ${REMOTE_CLONE_DIR}"
+remote_exec_root "git clone ${REMOTE_REPO} ${REMOTE_CLONE_DIR}"
+remote_exec_root "cp -a ${REMOTE_CLONE_DIR}/MONITORING/. ${REMOTE_DIR}/"
+remote_exec_root "rm -rf ${REMOTE_CLONE_DIR}"
 
-ssh "${SSH_USER}@${MON_HOST}" "${REMOTE_SUDO:+$REMOTE_SUDO }bash -lc 'cat > ${REMOTE_DIR}/.env <<EOF
+remote_exec_root "cat > ${REMOTE_DIR}/.env <<'EOF'
 APP_HOST=${APP_HOST}
 SLACK_WEBHOOK_URL=${SLACK_WEBHOOK_URL}
 GITHUB_REPOSITORY=${GITHUB_REPOSITORY}
 GITHUB_TOKEN=${GITHUB_TOKEN}
 GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER}
 GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
-EOF'"
+EOF"
 
-ssh "${SSH_USER}@${MON_HOST}" "${REMOTE_SUDO:+$REMOTE_SUDO }chmod +x ${REMOTE_DIR}/render-configs.sh ${REMOTE_DIR}/setup-monitoring.sh"
-ssh "${SSH_USER}@${MON_HOST}" "cd ${REMOTE_DIR} && ${REMOTE_SUDO:+$REMOTE_SUDO }./setup-monitoring.sh"
+remote_exec_root "chmod +x ${REMOTE_DIR}/render-configs.sh ${REMOTE_DIR}/setup-monitoring.sh"
+remote_exec_root "cd ${REMOTE_DIR} && ./setup-monitoring.sh"
 
 echo "Monitoring stack deployment complete."
 echo "Visit Grafana at http://${MON_HOST}:3000"

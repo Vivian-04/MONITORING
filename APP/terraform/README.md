@@ -14,6 +14,8 @@ Terraform prompts for:
 
 - `monitoring_host`: monitoring server IP or hostname
 - `ssh_user`: SSH user for the monitoring server, default `root`
+- `ssh_password`: SSH password for the monitoring server user
+- `sudo_password`: sudo password, or leave empty to reuse `ssh_password`
 - `app_host`: existing application server IP or hostname
 - `slack_webhook_url`: Slack webhook for `#DevOps-Alerts`
 - `github_repository`: repository for GitHub Actions/DORA metrics, in `owner/repo` format
@@ -26,6 +28,8 @@ Terraform prompts for:
 ```hcl
 monitoring_host = "10.0.0.10"
 ssh_user = "ubuntu"
+ssh_password = "replace_with_monitoring_server_password"
+sudo_password = ""
 app_host = "10.0.0.5"
 slack_webhook_url = "https://hooks.slack.com/services/..."
 github_repository = "Vivian-04/MONITORING"
@@ -50,6 +54,13 @@ The `null_resource.deploy_monitoring` resource runs `../deploy-monitoring-ssh.sh
 4. Copies `MONITORING/` into `/opt/monitoring`.
 5. Writes `/opt/monitoring/.env`.
 6. Runs `setup-monitoring.sh`.
+
+Because the monitoring server login uses username/password authentication, the machine running Terraform must have `sshpass` installed:
+
+```bash
+sudo apt update
+sudo apt install -y sshpass
+```
 
 `setup-monitoring.sh` downloads native binaries, renders templates, installs systemd unit files, enables services, and starts:
 

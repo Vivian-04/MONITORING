@@ -2,6 +2,8 @@
 
 monitoring_host = "10.0.0.10"
 ssh_user = "ubuntu"
+ssh_password = "replace_with_monitoring_server_password"
+sudo_password = ""
 app_host = "10.0.0.5"
 slack_webhook_url = "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX"
 github_repository = "Vivian-04/MONITORING"

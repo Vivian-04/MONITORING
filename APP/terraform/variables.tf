@@ -4,9 +4,22 @@ variable "monitoring_host" {
 }
 
 variable "ssh_user" {
-  description = "SSH user for the monitoring server. Use root or a passwordless-sudo user."
+  description = "SSH user for the monitoring server."
   type        = string
   default     = "root"
+}
+
+variable "ssh_password" {
+  description = "SSH password for the monitoring server user."
+  type        = string
+  sensitive   = true
+}
+
+variable "sudo_password" {
+  description = "Sudo password for the monitoring server user. Leave empty to reuse ssh_password."
+  type        = string
+  sensitive   = true
+  default     = ""
 }
 
 variable "app_host" {
