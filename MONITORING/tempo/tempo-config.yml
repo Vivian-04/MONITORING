@@ -33,18 +33,18 @@ metrics_generator:
       source: tempo
       environment: production
   storage:
-    path: /tmp/tempo/generator/wal
+    path: /opt/monitoring/tempo/data/generator/wal
     remote_write:
-      - url: http://prometheus:9090/api/v1/write
+      - url: http://localhost:9090/api/v1/write
         send_exemplars: true
 
 storage:
   trace:
     backend: local
     wal:
-      path: /tmp/tempo/wal
+      path: /opt/monitoring/tempo/data/wal
     local:
-      path: /tmp/tempo/blocks
+      path: /opt/monitoring/tempo/data/blocks
 
 querier:
   max_concurrent_queries: 20

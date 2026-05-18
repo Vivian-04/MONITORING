@@ -1,40 +1,28 @@
 # Runbook: HighDiskCritical
 
 ## What is this alert?
-Disk usage has exceeded 90%. The system is critically low on disk space.
-Services will start failing to write data — Prometheus, Loki, application logs.
+Disk usage on the monitoring server is above 90%. Metrics, logs, and traces may stop writing soon.
 
-## Likely Causes
-- Log files not rotating
-- Docker images and layers accumulating
-- Prometheus retention not working correctly
+## Likely causes
+- Retention directories grew faster than expected.
+- A service is writing excessive logs.
+- A Game Day or incident generated unusually high telemetry.
 
-## First 3 Investigation Steps
-
-### Step 1 — Emergency space recovery
+## First 3 investigation steps
 ```bash
-# Immediate cleanup
-docker system prune -a -f --volumes
+df -h
+sudo du -xh /opt/monitoring /var/log /tmp 2>/dev/null | sort -rh | head -20
+sudo journalctl --disk-usage
 ```
 
-### Step 2 — Find largest directories
-```bash
-du -sh /* 2>/dev/null | sort -rh | head -20
-```
+## How to resolve
+- Remove nonessential files in `/tmp`.
+- Vacuum logs: `sudo journalctl --vacuum-time=3d`.
+- Restart a service only if it is writing runaway logs.
+- Increase disk size before restarting the full stack if data must be preserved.
 
-### Step 3 — Clean logs
-```bash
-rm -rf ~/devops-sandbox/logs/archived/*
-find ~/devops-sandbox/logs -name "*.log" -size +100M -delete
-```
-
-## How to Resolve
-1. Run `docker system prune -a -f` immediately
-2. Delete old archived logs
-3. Consider increasing EC2 volume size in AWS console
-
-## Should I Roll Back?
-Not applicable — disk issues are infrastructure, not deployment related.
+## Should I roll back?
+Only if a recent retention or logging change caused the growth.
 
 ## Escalation
-Escalate immediately. At 95%+ disk, the entire platform will fail.
+Escalate immediately. At 90%, the observability platform can lose data.

@@ -1,41 +1,28 @@
 # Runbook: HighDiskWarning
 
 ## What is this alert?
-Disk usage has exceeded 75% on one or more filesystems.
+Disk usage on the monitoring server is above 75%.
 
-## Likely Causes
-- Log files growing too large (Stage 5 app logs)
-- Docker images accumulating
-- Prometheus or Loki data exceeding expected size
-- Old archived environment logs not cleaned up
+## Likely causes
+- Prometheus TSDB, Loki chunks, or Tempo blocks are growing.
+- Journal logs are accumulating.
+- Old release archives remain in `/tmp`.
 
-## First 3 Investigation Steps
-
-### Step 1 — Find what is using disk
+## First 3 investigation steps
 ```bash
 df -h
-du -sh /* 2>/dev/null | sort -rh | head -10
+sudo du -sh /opt/monitoring/* /var/log/journal /tmp 2>/dev/null | sort -rh
+journalctl --disk-usage
 ```
 
-### Step 2 — Check Docker disk usage
-```bash
-docker system df
-docker system df -v
-```
+## How to resolve
+- Remove old temporary archives from `/tmp`.
+- Vacuum journal logs: `sudo journalctl --vacuum-time=7d`.
+- Verify retention is set: Prometheus 30d, Loki 744h, Tempo 720h.
+- Increase disk size if retention requirements exceed capacity.
 
-### Step 3 — Check log sizes
-```bash
-du -sh ~/devops-sandbox/logs/
-du -sh ~/devops-sandbox/logs/archived/
-```
-
-## How to Resolve
-- Clean Docker: `docker system prune -a -f`
-- Clean old logs: `rm -rf ~/devops-sandbox/logs/archived/*`
-- Clean old Stage 5 environments: `cd ~/devops-sandbox && make clean`
-
-## Should I Roll Back?
-No — this is not deployment related.
+## Should I roll back?
+No, unless disk growth started after a retention/config change.
 
 ## Escalation
-If disk hits 90%, escalate immediately — system will fail to write logs and metrics.
+Escalate if usage continues rising or reaches the critical 90% threshold.

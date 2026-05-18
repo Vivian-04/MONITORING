@@ -60,7 +60,7 @@
       "gridPos": {"h": 6, "w": 6, "x": 12, "y": 0},
       "targets": [{
         "datasource": "Prometheus",
-        "expr": "avg(alertmanager_alert_active_duration_seconds) or vector(0)",
+          "expr": "dora:mttr:average_seconds",
         "legendFormat": "MTTR"
       }],
       "fieldConfig": {

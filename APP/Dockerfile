@@ -34,7 +34,7 @@ EXPOSE 3000
 
 # Healthcheck for Docker
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen(''http://localhost:3000/healthz')" || exit 1
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:3000/healthz')" || exit 1
 
 # Start the application
 CMD ["python", "app/main.py"]

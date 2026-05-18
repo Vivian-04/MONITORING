@@ -78,16 +78,16 @@ processors:
 exporters:
   # ── Tempo Exporter ────────────────────────────────────────
   # Sends traces to Tempo using OTLP gRPC.
-  # Uses container name as hostname (same Docker network).
+  # Uses localhost because Tempo runs as a systemd service on this host.
   otlp/tempo:
-    endpoint: tempo:4317
+    endpoint: localhost:4317
     tls:
       insecure: true
 
   # ── Loki Exporter ─────────────────────────────────────────
   # Sends logs to Loki.
   loki:
-    endpoint: http://loki:3100/loki/api/v1/push
+    endpoint: http://localhost:3100/loki/api/v1/push
     default_labels_enabled:
       exporter: false
       job: true

@@ -1,45 +1,28 @@
 # Runbook: SloBurnRateFast
 
 ## What is this alert?
-We are consuming our error budget 14.4x faster than normal.
-At this rate the entire 30-day error budget will be exhausted in approximately 2 hours.
+The service is burning the 99.5% availability error budget at 14.4x or faster.
 
-## What is the error budget?
-Our availability SLO is 99.5%. The error budget is 0.5% of 30 days = 3.6 hours.
-Fast burn means we are using that 3.6 hours at 14.4x normal speed.
+## Likely causes
+- The application is down or returning errors.
+- Latency is high enough that probes fail.
+- A bad deployment created a broad outage.
+- Network connectivity between the monitoring and app server is broken.
 
-## Likely Causes
-- Server is completely down (check ServerDown alert)
-- Nginx is returning errors to all requests
-- A deployment broke the platform
-
-## First 3 Investigation Steps
-
-### Step 1 — Check what is failing
+## First 3 investigation steps
 ```bash
-curl -v http://localhost/
-curl -v http://localhost/nginx-health
-docker ps
+curl -vk http://$APP_HOST:8080/healthz
+curl -vk http://$APP_HOST:8080/
+journalctl -u prometheus -u blackbox-exporter -n 100 --no-pager
 ```
 
-### Step 2 — Check Prometheus for the exact error rate
-Go to http://EC2-IP:9090 and query:
-1 - probe_success{job="blackbox-http"}
+## How to resolve
+- Fix the application or network path causing failed probes.
+- If a deployment caused the burn, roll back immediately.
+- Confirm recovery in Grafana's SLO dashboard and wait for resolved Slack notification.
 
-### Step 3 — Check recent deployments
-```bash
-git -C ~/devops-sandbox log --oneline -5
-docker logs sandbox-nginx --tail 50
-```
-
-## How to Resolve
-1. Identify and fix the root cause of failures
-2. If a deployment caused it: `git revert HEAD && make up`
-3. If Nginx is down: `docker restart sandbox-nginx`
-
-## Should I Roll Back?
-Yes — if this started after a deployment, roll back immediately.
-Every minute at this burn rate costs error budget.
+## Should I roll back?
+Yes, if the burn started after a deployment. Every minute consumes error budget.
 
 ## Escalation
-Escalate IMMEDIATELY. This alert means we will breach our SLO within hours.
+Escalate immediately. Fast burn can exhaust the monthly budget in hours.

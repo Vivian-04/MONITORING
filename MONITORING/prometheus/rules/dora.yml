@@ -137,19 +137,15 @@ groups:
 
       - record: dora:mttr:average_seconds
         expr: |
-          avg(alertmanager_alert_active_duration_seconds) or vector(0)
+          avg(time() - ALERTS_FOR_STATE{alertstate="firing"}) or vector(0)
 
       - record: dora:mttr:p50_seconds
         expr: |
-          histogram_quantile(0.50,
-            rate(alertmanager_alert_active_duration_seconds_bucket[7d])
-          ) or vector(0)
+          quantile(0.50, time() - ALERTS_FOR_STATE{alertstate="firing"}) or vector(0)
 
       - record: dora:mttr:p95_seconds
         expr: |
-          histogram_quantile(0.95,
-            rate(alertmanager_alert_active_duration_seconds_bucket[7d])
-          ) or vector(0)
+          quantile(0.95, time() - ALERTS_FOR_STATE{alertstate="firing"}) or vector(0)
 
   # ── DORA Alert Rules ──────────────────────────────────────
   # These fire when DORA metrics breach acceptable thresholds.
@@ -176,7 +172,7 @@ groups:
             before reaching production.
           value: "{{ $value | printf \"%.1f\" }}%"
           dashboard_url: "http://localhost:3000/d/dora/dora-metrics"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/high-cfr.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/high-cfr.md"
 
       # Alert when MTTR exceeds 1 hour (DORA Elite threshold)
       - alert: HighMeanTimeToRestore
@@ -196,7 +192,7 @@ groups:
             Document where manual intervention is adding time.
           value: "{{ $value | printf \"%.0f\" }}s"
           dashboard_url: "http://localhost:3000/d/dora/dora-metrics"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/high-mttr.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/high-mttr.md"
 
       # Alert when workflow execution is slow
       - alert: SlowWorkflowExecution
@@ -214,7 +210,7 @@ groups:
             This indicates workflow execution is slow and may degrade deployment velocity.
           value: "{{ $value | printf \"%.0f\" }}s"
           dashboard_url: "http://localhost:3000/d/dora/dora-metrics"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slow-workflow-execution.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/slow-workflow-execution.md"
 
       # Alert when no successful deployments in 7 days
       # Indicates deployment pipeline may be broken
@@ -234,4 +230,4 @@ groups:
             DORA Elite benchmark is multiple deployments per day.
           value: "0 deployments"
           dashboard_url: "http://localhost:3000/d/dora/dora-metrics"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/high-cfr.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/low-deployment-frequency.md"

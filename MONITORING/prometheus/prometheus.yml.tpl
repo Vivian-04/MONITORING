@@ -10,7 +10,7 @@ alerting:
   alertmanagers:
     - static_configs:
         - targets:
-            - alertmanager:9093
+            - localhost:9093
 
 rule_files:
   - "/etc/prometheus/rules/*.yml"
@@ -52,6 +52,21 @@ scrape_configs:
         labels:
           service: cicd
           instance: github-actions
+
+  - job_name: "blackbox-ssl"
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+          - https://${APP_HOST}/
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115
 
   - job_name: "alertmanager"
     static_configs:

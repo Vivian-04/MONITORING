@@ -96,7 +96,7 @@ inhibit_rules:
 receivers:
   - name: 'slack-notifications'
     slack_configs:
-      - channel: '#devops-alerts'
+      - channel: '#DevOps-Alerts'
         send_resolved: true
         title: '{{ template "slack.title" . }}'
         text: '{{ template "slack.body" . }}'
@@ -111,7 +111,7 @@ receivers:
 
   - name: 'slack-critical'
     slack_configs:
-      - channel: '#devops-alerts'
+      - channel: '#DevOps-Alerts'
         send_resolved: true
         title: '{{ template "slack.title" . }}'
         text: '{{ template "slack.body" . }}'

@@ -1,45 +1,29 @@
 # Runbook: HighCpuCritical
 
 ## What is this alert?
-CPU usage has exceeded 90% for more than 10 minutes. This is critical.
-The system is severely overloaded. Response times will be degraded.
+CPU usage on the monitoring server is above 90% for at least 10 minutes.
 
-## Likely Causes
-- Multiple sandbox environments under heavy load simultaneously
-- A container in an infinite loop
-- Memory pressure causing excessive swapping and CPU thrashing
-- A DoS attack or traffic flood
+## Likely causes
+- A service is stuck in a hot loop.
+- Very expensive Prometheus/Grafana queries are running.
+- Loki or Tempo compaction is consuming CPU.
+- Resource pressure was intentionally injected for Game Day.
 
-## First 3 Investigation Steps
-
-### Step 1 — Immediate check
+## First 3 investigation steps
 ```bash
 top -b -n 1 | head -20
-docker stats --no-stream
+ps aux --sort=-%cpu | head -10
+journalctl -p warning..alert -n 100 --no-pager
 ```
 
-### Step 2 — Find and kill the offender
-```bash
-# Find the highest CPU process
-ps aux --sort=-%cpu | head -5
+## How to resolve
+- Stop the highest CPU non-critical process if it is clearly runaway.
+- Restart the affected service with `sudo systemctl restart <service>`.
+- Temporarily reduce dashboard refresh rates or query windows.
+- Add CPU capacity if the load is legitimate.
 
-# If it is a Docker container
-docker stats --no-stream | sort -k3 -rh | head -5
-```
-
-### Step 3 — Check memory pressure
-```bash
-free -h
-vmstat 1 5
-```
-
-## How to Resolve
-1. Kill the highest CPU consuming container: `docker stop <container>`
-2. If unknown process: `kill -9 <PID>`
-3. If all containers are high: `make down` on Stage 5 to free resources
-
-## Should I Roll Back?
-Yes — if this started after a deployment, roll back immediately.
+## Should I roll back?
+Yes, if the critical spike began after a config or binary version change.
 
 ## Escalation
-Escalate immediately if CPU stays above 90% for more than 15 minutes.
+Escalate immediately if CPU remains above 90% for 15 minutes.

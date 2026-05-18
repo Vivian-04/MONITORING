@@ -1,145 +1,91 @@
-# The Four Golden Signals — SLI Definitions
+# Four Golden Signals - SLI Definitions
 
-The Four Golden Signals are the four most critical metrics for monitoring
-any service. Defined by Google's SRE book. Instead of watching 100 metrics,
-you focus on these 4 to understand service health instantly.
+These SLIs define what reliability means for the monitored application.
 
----
+## Latency
 
-## Signal 1 — LATENCY (How Slow?)
+Latency measures how long requests take. Successful and failed requests are considered separately because slow failures often indicate timeout or retry behavior.
 
-**What it measures:**
-How long it takes to serve a request.
-We distinguish between successful and error request latency — they tell
-different stories. Slow errors often indicate retry storms or cascading failures.
-
-**Successful request latency:**
-```promql
-histogram_quantile(0.95,
-  rate(probe_duration_seconds_bucket{job="blackbox-http"}[5m])
-)
-```
-Recording rule: `golden:latency:p95`
-
-**Error request latency:**
-```promql
-histogram_quantile(0.95,
-  rate(probe_duration_seconds_bucket{job="blackbox-http"}[5m])
-) * (1 - probe_success{job="blackbox-http"})
-```
-Recording rule: `golden:latency:errors_p95`
-
-**SLO target:** 95% of requests complete under 500ms (0.5s)
-**Why p95:** Averages hide tail latency. 95th percentile shows what
-95% of your users actually experience — the other 5% get worse.
-**Alert threshold:** `golden:latency:p95 > 0.5`
-
----
-
-## Signal 2 — TRAFFIC (How Busy?)
-
-**What it measures:**
-How much demand the system is handling — requests per second.
-Traffic context is essential: errors during high traffic may be normal.
-Errors without traffic increase means something broke.
+Successful request p95:
 
 ```promql
-rate(probe_success{job="blackbox-http"}[5m])
+histogram_quantile(0.95, rate(probe_duration_seconds_bucket{job="blackbox-http"}[5m]))
 ```
-Recording rule: `golden:traffic:probe_rate`
 
-**Current baseline:** ~0.033 req/s (Blackbox probes every 30 seconds)
-**Why it matters:** Correlates problems with load.
-A spike in errors + spike in traffic = capacity problem.
-A spike in errors + flat traffic = software problem.
+Error request p95:
 
----
-
-## Signal 3 — ERRORS (How Broken?)
-
-**What it measures:**
-The rate of requests that fail. We track three types:
-
-**Explicit errors (HTTP non-2xx responses):**
 ```promql
-(1 - avg(probe_success{job="blackbox-http"})) * 100
+histogram_quantile(0.95, rate(probe_duration_seconds_bucket{job="blackbox-http"}[5m]))
+  * (1 - probe_success{job="blackbox-http"})
 ```
-Recording rule: `golden:errors:percentage`
 
-**Implicit errors (connection refused, timeouts):**
+SLO target: p95 under 500ms.
+
+## Traffic
+
+Traffic measures synthetic demand handled by the service.
+
+```promql
+count(probe_success{job="blackbox-http"}) / 15
+```
+
+The denominator matches the 15-second scrape interval.
+
+## Errors
+
+Errors measure failed probes and policy failures.
+
+Failed probe ratio:
+
 ```promql
 1 - avg(probe_success{job="blackbox-http"})
 ```
-Recording rule: `golden:errors:rate`
 
-**Policy failures (requests exceeding latency SLO):**
+Failed probe percentage:
+
 ```promql
-histogram_quantile(0.95,
-  rate(probe_duration_seconds_bucket{job="blackbox-http"}[5m])
-) > 0.5
+(1 - avg(probe_success{job="blackbox-http"})) * 100
 ```
-Recording rule: `golden:errors:latency_slo_violations`
 
-**SLO target:** Less than 0.5% error rate (99.5% availability)
-**Why three types:** Explicit errors are caught by HTTP status codes.
-Implicit errors are network-level failures. Policy failures are requests
-that technically succeeded but were too slow to be acceptable.
+Latency policy failure:
 
----
-
-## Signal 4 — SATURATION (How Full?)
-
-**What it measures:**
-How close the system is to its capacity limits.
-Saturation PREDICTS future problems before they impact users.
-
-**CPU saturation:**
 ```promql
-(1 - avg by(instance) (
-  rate(node_cpu_seconds_total{mode="idle"}[5m])
-)) * 100
+histogram_quantile(0.95, rate(probe_duration_seconds_bucket{job="blackbox-http"}[5m])) > 0.5
 ```
-Recording rule: `golden:saturation:cpu_percent`
-Alert threshold: Warning at 80%, Critical at 90%
 
-**Memory saturation:**
+SLO target: at least 99.5% successful probes over 30 days.
+
+## Saturation
+
+Saturation measures how full the system is.
+
+CPU:
+
 ```promql
-(1 - (
-  node_memory_MemAvailable_bytes /
-  node_memory_MemTotal_bytes
-)) * 100
+(1 - avg by(instance) (rate(node_cpu_seconds_total{mode="idle"}[5m]))) * 100
 ```
-Recording rule: `golden:saturation:memory_percent`
-Alert threshold: Warning at 80%, Critical at 90%
 
-**Disk saturation:**
+Memory:
+
+```promql
+(1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) * 100
+```
+
+Disk:
+
 ```promql
 (1 - (
   node_filesystem_avail_bytes{fstype!~"tmpfs|fuse.lxcfs"} /
   node_filesystem_size_bytes{fstype!~"tmpfs|fuse.lxcfs"}
 )) * 100
 ```
-Recording rule: `golden:saturation:disk_percent`
-Alert threshold: Warning at 75%, Critical at 90%
 
-**Why saturation matters:**
-At 90% CPU the system starts queuing requests — latency increases.
-At 100% CPU requests start timing out — errors increase.
-Saturation lets you act BEFORE the user-facing impact begins.
+Network:
 
----
+```promql
+rate(node_network_receive_bytes_total{device!~"lo|docker.*|veth.*"}[5m])
+rate(node_network_transmit_bytes_total{device!~"lo|docker.*|veth.*"}[5m])
+```
 
-## How the Signals Connect
-High TRAFFIC
-│
-└──► Check SATURATION — is the system at capacity?
-│
-├── YES → Scale up or shed load
-└── NO  → Check ERRORS — what is breaking?
-│
-└──► Check LATENCY — how slow is it?
-│
-└──► Identify root cause
-
-All four signals together tell the full story.
-One signal alone is never enough.
+Warning thresholds: CPU 80%, memory 80%, disk 75%.
+Critical thresholds: CPU 90%, memory 90%, disk 90%.

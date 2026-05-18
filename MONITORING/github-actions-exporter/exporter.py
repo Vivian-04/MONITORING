@@ -7,7 +7,7 @@ from datetime import datetime, timezone, timedelta
 
 import requests
 from prometheus_client import start_http_server
-from prometheus_client.core import CounterMetricFamily, REGISTRY
+from prometheus_client.core import CounterMetricFamily, HistogramMetricFamily, REGISTRY
 
 STATE_FILE = "/data/state.json"
 GITHUB_REPOSITORY = os.environ.get("GITHUB_REPOSITORY")
@@ -130,31 +130,17 @@ class GitHubActionsCollector:
             conclusion_total.add_metric([conclusion], float(count))
         yield conclusion_total
 
-        duration_count = CounterMetricFamily(
-            "github_actions_workflow_run_duration_seconds_count",
-            "Total number of successful GitHub Actions workflow runs used for duration calculations",
+        duration_histogram = HistogramMetricFamily(
+            "github_actions_workflow_run_duration_seconds",
+            "GitHub Actions workflow run duration histogram for successful runs",
             labels=["conclusion"],
         )
-        duration_count.add_metric(["success"], float(self.state["duration_count"]))
-        yield duration_count
-
-        duration_sum = CounterMetricFamily(
-            "github_actions_workflow_run_duration_seconds_sum",
-            "Sum of successful GitHub Actions workflow run durations in seconds",
-            labels=["conclusion"],
-        )
-        duration_sum.add_metric(["success"], float(self.state["duration_sum"]))
-        yield duration_sum
-
-        duration_bucket = CounterMetricFamily(
-            "github_actions_workflow_run_duration_seconds_bucket",
-            "GitHub Actions workflow run duration histogram buckets",
-            labels=["conclusion", "le"],
-        )
+        buckets = []
         for bucket in BUCKETS:
             label = "+Inf" if bucket == float("inf") else str(int(bucket))
-            duration_bucket.add_metric(["success", label], float(self.state["duration_buckets"].get(label, 0)))
-        yield duration_bucket
+            buckets.append((label, float(self.state["duration_buckets"].get(label, 0))))
+        duration_histogram.add_metric(["success"], buckets, sum_value=float(self.state["duration_sum"]))
+        yield duration_histogram
 
 
 def main():

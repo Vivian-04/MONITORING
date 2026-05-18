@@ -121,7 +121,7 @@
       "gridPos": {"h": 4, "w": 12, "x": 0, "y": 20},
       "targets": [{
         "datasource": "Prometheus",
-        "expr": "(probe_ssl_earliest_cert_expiry{job='blackbox-http'} - time()) / 86400",
+        "expr": "(probe_ssl_earliest_cert_expiry{job='blackbox-ssl'} - time()) / 86400",
         "legendFormat": "{{instance}}"
       }],
       "fieldConfig": {

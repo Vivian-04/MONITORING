@@ -24,7 +24,7 @@ groups:
           description: "CPU usage has been above 80% for more than 5 minutes."
           value: "{{ $value | printf \"%.2f\" }}%"
           dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/cpu-warning.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/cpu-warning.md"
 
       - alert: HighCpuCritical
         expr: |
@@ -38,7 +38,7 @@ groups:
           description: "CPU usage has been above 90% for more than 10 minutes."
           value: "{{ $value | printf \"%.2f\" }}%"
           dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/cpu-critical.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/cpu-critical.md"
 
       # ── Memory Alerts ─────────────────────────────────────
 
@@ -54,7 +54,7 @@ groups:
           description: "Memory usage has been above 80% for more than 5 minutes."
           value: "{{ $value | printf \"%.2f\" }}%"
           dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/memory-warning.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/memory-warning.md"
 
       - alert: HighMemoryCritical
         expr: |
@@ -68,7 +68,7 @@ groups:
           description: "Memory usage has been above 90% for more than 5 minutes."
           value: "{{ $value | printf \"%.2f\" }}%"
           dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/memory-critical.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/memory-critical.md"
 
       # ── Disk Alerts ───────────────────────────────────────
 
@@ -85,7 +85,7 @@ groups:
           description: "Disk usage on {{ $labels.mountpoint }} has been above 75%."
           value: "{{ $value | printf \"%.2f\" }}%"
           dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/disk-warning.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/disk-warning.md"
 
       - alert: HighDiskCritical
         expr: |
@@ -100,7 +100,7 @@ groups:
           description: "Disk usage on {{ $labels.mountpoint }} has been above 90%."
           value: "{{ $value | printf \"%.2f\" }}%"
           dashboard_url: "http://localhost:3000/d/node-exporter/node-exporter"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/disk-critical.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/disk-critical.md"
 
       # ── Server Down Alert ─────────────────────────────────
 
@@ -116,7 +116,7 @@ groups:
           description: "Blackbox probe has been failing for more than 2 minutes."
           value: "probe_success=0"
           dashboard_url: "http://localhost:3000/d/blackbox/blackbox-exporter"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/server-down.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/server-down.md"
 
       - alert: ServerRecovered
         expr: |
@@ -130,4 +130,4 @@ groups:
           description: "Blackbox probe is now succeeding."
           value: "probe_success=1"
           dashboard_url: "http://localhost:3000/d/blackbox/blackbox-exporter"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/server-down.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/server-recovered.md"

@@ -9,6 +9,7 @@ Group=monitoring
 ExecStart=/opt/monitoring/bin/prometheus \
   --config.file=/opt/monitoring/prometheus/prometheus.yml \
   --storage.tsdb.path=/opt/monitoring/prometheus/data \
+  --storage.tsdb.retention.time=30d \
   --web.listen-address=0.0.0.0:9090
 Restart=always
 RestartSec=5

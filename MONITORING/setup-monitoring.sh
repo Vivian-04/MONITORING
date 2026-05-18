@@ -8,36 +8,55 @@ fi
 
 INSTALL_DIR="$(pwd)"
 SERVICE_USER=monitoring
+GRAFANA_HOME="$INSTALL_DIR/grafana-home"
 
-read -rp "Application server host or IP to monitor: " APP_HOST
-if [ -z "$APP_HOST" ]; then
+if [ -f .env ]; then
+  set -a
+  source .env
+  set +a
+fi
+
+if [ -z "${APP_HOST:-}" ]; then
+  read -rp "Application server host or IP to monitor: " APP_HOST
+fi
+if [ -z "${APP_HOST:-}" ]; then
   echo "Application server host cannot be empty."
   exit 1
 fi
 
-read -rp "Slack webhook URL for Alertmanager notifications: " SLACK_WEBHOOK_URL
-if [ -z "$SLACK_WEBHOOK_URL" ]; then
+if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
+  read -rp "Slack webhook URL for Alertmanager notifications: " SLACK_WEBHOOK_URL
+fi
+if [ -z "${SLACK_WEBHOOK_URL:-}" ]; then
   echo "Slack webhook URL cannot be empty."
   exit 1
 fi
 
-read -rp "GitHub repository to monitor (owner/repo): " GITHUB_REPOSITORY
-if [ -z "$GITHUB_REPOSITORY" ]; then
+if [ -z "${GITHUB_REPOSITORY:-}" ]; then
+  read -rp "GitHub repository to monitor (owner/repo): " GITHUB_REPOSITORY
+fi
+if [ -z "${GITHUB_REPOSITORY:-}" ]; then
   echo "GitHub repository cannot be empty."
   exit 1
 fi
 
-read -rsp "GitHub token for repository metrics (GITHUB_TOKEN): " GITHUB_TOKEN
-echo
-if [ -z "$GITHUB_TOKEN" ]; then
+if [ -z "${GITHUB_TOKEN:-}" ]; then
+  read -rsp "GitHub token for repository metrics (GITHUB_TOKEN): " GITHUB_TOKEN
+  echo
+fi
+if [ -z "${GITHUB_TOKEN:-}" ]; then
   echo "GitHub token cannot be empty."
   exit 1
 fi
 
-read -rp "Grafana admin user [admin]: " GRAFANA_ADMIN_USER
+if [ -z "${GRAFANA_ADMIN_USER:-}" ]; then
+  read -rp "Grafana admin user [admin]: " GRAFANA_ADMIN_USER
+fi
 GRAFANA_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
 
-read -rp "Grafana admin password [admin]: " GRAFANA_ADMIN_PASSWORD
+if [ -z "${GRAFANA_ADMIN_PASSWORD:-}" ]; then
+  read -rp "Grafana admin password [admin]: " GRAFANA_ADMIN_PASSWORD
+fi
 GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
 
 cat > .env <<EOF
@@ -65,8 +84,13 @@ mkdir -p \
   "$INSTALL_DIR/grafana/log" \
   "$INSTALL_DIR/grafana/conf" \
   "$INSTALL_DIR/grafana/plugins" \
-  "$INSTALL_DIR/loki" \
-  "$INSTALL_DIR/tempo" \
+  "$GRAFANA_HOME" \
+  "$INSTALL_DIR/loki/data/chunks" \
+  "$INSTALL_DIR/loki/data/rules" \
+  "$INSTALL_DIR/loki/data/compactor" \
+  "$INSTALL_DIR/tempo/data/generator/wal" \
+  "$INSTALL_DIR/tempo/data/wal" \
+  "$INSTALL_DIR/tempo/data/blocks" \
   "$INSTALL_DIR/blackbox" \
   "$INSTALL_DIR/github-actions-exporter"
 
@@ -98,6 +122,7 @@ modules:
       valid_http_versions: ["HTTP/1.1", "HTTP/2"]
       valid_status_codes: [200, 302]
       method: GET
+      preferred_ip_protocol: ip4
 EOF
 
 function download_extract_tarball() {
@@ -124,15 +149,15 @@ function download_extract_grafana() {
   local url=$1
   local archive="/tmp/monitoring-grafana.tar.gz"
 
-  if [ ! -x "$INSTALL_DIR/grafana/bin/grafana-server" ]; then
+  if [ ! -x "$GRAFANA_HOME/bin/grafana-server" ]; then
     rm -rf /tmp/monitoring-release
     mkdir -p /tmp/monitoring-release
     curl -fsSL -o "$archive" "$url"
     tar -xzf "$archive" -C /tmp/monitoring-release
-    rm -rf "$INSTALL_DIR/grafana"
-    mv /tmp/monitoring-release/grafana-* "$INSTALL_DIR/grafana"
+    rm -rf "$GRAFANA_HOME"
+    mv /tmp/monitoring-release/grafana-* "$GRAFANA_HOME"
     mkdir -p "$INSTALL_DIR/grafana/data" "$INSTALL_DIR/grafana/log" "$INSTALL_DIR/grafana/plugins"
-    chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR/grafana"
+    chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR/grafana" "$GRAFANA_HOME"
   fi
 }
 

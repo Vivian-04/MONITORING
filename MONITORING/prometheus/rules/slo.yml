@@ -81,17 +81,13 @@ groups:
       # Requests per second (all requests)
       - record: golden:traffic:requests_per_second
         expr: |
-          rate(probe_http_status_code{
-            job="blackbox-http"
-          }[5m])
+          count(probe_success{job="blackbox-http"}) / 15
 
       # Requests per second from Blackbox probes
       # Each Blackbox probe = one synthetic request
       - record: golden:traffic:probe_rate
         expr: |
-          rate(probe_success{
-            job="blackbox-http"
-          }[5m])
+          count(probe_success{job="blackbox-http"}) / 15
 
       # ── SIGNAL 3: ERRORS ──────────────────────────────────
       # What percentage of requests are failing?
@@ -180,19 +176,19 @@ groups:
     rules:
 
       - record: job:probe_success:rate5m
-        expr: rate(probe_success{job="blackbox-http"}[5m])
+        expr: avg_over_time(probe_success{job="blackbox-http"}[5m])
 
       - record: job:probe_success:rate1h
-        expr: rate(probe_success{job="blackbox-http"}[1h])
+        expr: avg_over_time(probe_success{job="blackbox-http"}[1h])
 
       - record: job:probe_success:rate6h
-        expr: rate(probe_success{job="blackbox-http"}[6h])
+        expr: avg_over_time(probe_success{job="blackbox-http"}[6h])
 
       - record: job:probe_success:rate24h
-        expr: rate(probe_success{job="blackbox-http"}[24h])
+        expr: avg_over_time(probe_success{job="blackbox-http"}[24h])
 
       - record: job:probe_success:rate30d
-        expr: rate(probe_success{job="blackbox-http"}[30d])
+        expr: avg_over_time(probe_success{job="blackbox-http"}[30d])
 
   # ══════════════════════════════════════════════════════════
   # SECTION 3 — SLO ALERT RULES
@@ -226,7 +222,7 @@ groups:
             Immediate action required.
           value: "{{ $value | printf \"%.4f\" }}"
           dashboard_url: "http://localhost:3000/d/slo/slo-error-budget"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slo-fast-burn.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/slo-fast-burn.md"
 
       # Slow Burn — 5x burn rate
       # 5% of monthly budget consumed in 6 hours
@@ -252,7 +248,7 @@ groups:
             Needs attention before it escalates.
           value: "{{ $value | printf \"%.4f\" }}"
           dashboard_url: "http://localhost:3000/d/slo/slo-error-budget"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slo-slow-burn.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/slo-slow-burn.md"
 
       # Error Budget Exhausted
       - alert: SloErrorBudgetExhausted
@@ -271,7 +267,7 @@ groups:
             Feature freeze should be considered per error budget policy.
           value: "{{ $value | printf \"%.4f\" }}"
           dashboard_url: "http://localhost:3000/d/slo/slo-error-budget"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slo-fast-burn.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/slo-error-budget-exhausted.md"
 
       # Latency SLO breach
       - alert: SloLatencyBurnRate
@@ -289,4 +285,4 @@ groups:
             Current p95: {{ $value | printf "%.3f" }}s
           value: "{{ $value | printf \"%.3f\" }}s"
           dashboard_url: "http://localhost:3000/d/blackbox/blackbox-exporter"
-          runbook_url: "https://github.com/Vivian-04/observability-stack/blob/main/runbooks/slo-slow-burn.md"
+          runbook_url: "https://github.com/Vivian-04/MONITORING/blob/main/MONITORING/runbooks/slo-latency-burn-rate.md"

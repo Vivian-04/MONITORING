@@ -1,72 +1,73 @@
-# SLO Definitions & Error Budgets
+# SLO Definitions and Error Budgets
 
-## What is an SLO?
-A Service Level Objective (SLO) is a target for how reliable a service should be.
-It is measured by a Service Level Indicator (SLI) — a specific metric.
+## Availability SLO
 
----
+Target: 99.5% of HTTP probes return success over a rolling 30-day window.
 
-## SLO 1 — Availability
+SLI:
 
-**SLO Target:** 99.5% of HTTP probes return 2xx over a rolling 30-day window
-
-**SLI PromQL:**
+```promql
 avg_over_time(probe_success{job="blackbox-http"}[30d]) * 100
+```
 
-**Reasoning:**
-- 100% is impossible — maintenance windows, deployments, failures happen
-- 99% = 7.2 hours downtime/month — too much for a platform
-- 99.5% = 3.6 hours downtime/month — appropriate for internal platform
-- 99.9% = 43 minutes — too strict for current team size
+Reasoning:
 
-**Error Budget:**
-- Budget = 1 - 0.995 = 0.005 = 0.5%
-- 0.5% of 30 days = 0.5% × 43,200 minutes = 216 minutes = 3.6 hours
+- 100% is not realistic for a student platform with deployments and maintenance.
+- 99.5% gives 216 minutes of monthly error budget.
+- The target is strict enough to detect real user impact without making every small transient event a page.
 
----
+Error budget:
 
-## SLO 2 — Latency
+```text
+(1 - 0.995) * 30 days = 216 minutes
+```
 
-**SLO Target:** 95% of requests complete under 500ms
+## Latency SLO
 
-**SLI PromQL:**
-histogram_quantile(0.95,
-rate(probe_duration_seconds_bucket{job="blackbox-http"}[5m])
-) < 0.5
+Target: p95 request latency below 500ms.
 
-**Reasoning:**
-- 500ms is the threshold where users notice slowness
-- 95th percentile captures most users without being too strict
-- 99th percentile would require over-engineering for edge cases
+SLI:
 
-**Error Budget:**
-- 5% of requests can exceed 500ms
-- Over 1 million requests, 50,000 can be slow
+```promql
+histogram_quantile(0.95, rate(probe_duration_seconds_bucket{job="blackbox-http"}[5m])) < 0.5
+```
 
----
+Reasoning:
 
-## SLO 3 — Error Rate
+- 500ms is noticeable but still practical for the app and monitoring environment.
+- p95 catches tail latency without overreacting to rare outliers.
 
-**SLO Target:** 99% of requests succeed (non-5xx)
+Error budget:
 
-**SLI PromQL:**
+```text
+5% of requests may exceed 500ms.
+```
+
+## Error Rate SLO
+
+Target: 99% of probes succeed.
+
+SLI:
+
+```promql
 avg_over_time(probe_success{job="blackbox-http"}[30d]) * 100 > 99
+```
 
-**Reasoning:**
-- 1% error rate acceptable for internal development platform
-- Production user-facing services target 99.9%
-- Allows for transient errors without paging
+Reasoning:
 
-**Error Budget:**
-- 1% of requests can fail
-- Over 1 million requests, 10,000 can error
+- This separates normal transient failures from sustained incidents.
+- It supports burn-rate alerting before users experience a long outage.
 
----
+Error budget:
 
-## Data Retention Periods
+```text
+1% of probes may fail.
+```
 
-| Component | Retention | Reason |
-|-----------|-----------|--------|
-| Prometheus | 30 days | Matches SLO measurement window |
-| Loki | 31 days (744h) | Slightly longer than Prometheus for correlation |
-| Tempo | 30 days (720h) | Matches Prometheus for trace correlation |
+## Retention
+
+| Component | Retention | Configuration |
+| --- | --- | --- |
+| Prometheus | 30 days | `systemd/prometheus.service` |
+| Loki | 744 hours | `loki/loki-config.yml` |
+| Tempo | 720 hours | `tempo/tempo-config.yml` |

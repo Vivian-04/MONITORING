@@ -6,10 +6,10 @@ After=network-online.target
 [Service]
 User=monitoring
 Group=monitoring
-ExecStart=/opt/monitoring/grafana/bin/grafana-server \
+ExecStart=/opt/monitoring/grafana-home/bin/grafana-server \
   --config=/opt/monitoring/grafana/conf/grafana.ini \
-  --homepath=/opt/monitoring/grafana
-WorkingDirectory=/opt/monitoring/grafana
+  --homepath=/opt/monitoring/grafana-home
+WorkingDirectory=/opt/monitoring/grafana-home
 Restart=always
 RestartSec=5
 LimitNOFILE=65536

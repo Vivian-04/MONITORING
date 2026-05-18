@@ -1,40 +1,29 @@
 # Runbook: HighCpuWarning
 
 ## What is this alert?
-CPU usage has exceeded 80% for more than 5 minutes on the EC2 instance.
-This is a warning — the system is under stress but still functional.
+CPU usage on the monitoring server is above 80% for at least 5 minutes.
 
-## Likely Causes
-- High traffic spike to sandbox environments
-- A runaway process or container consuming CPU
-- A cron job or scheduled task running
-- stress-ng running from a Game Day test
+## Likely causes
+- Prometheus, Loki, Tempo, or Grafana is under query load.
+- A systemd service is looping or restarting.
+- A Game Day CPU pressure test is running.
+- The host is undersized for the current retention/query volume.
 
-## First 3 Investigation Steps
-
-### Step 1 — Identify what is consuming CPU
+## First 3 investigation steps
 ```bash
 top -b -n 1 | head -20
-docker stats --no-stream
-```
-
-### Step 2 — Check which containers are busy
-```bash
-docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
-```
-
-### Step 3 — Check for runaway processes
-```bash
 ps aux --sort=-%cpu | head -10
+systemctl --failed
 ```
 
-## How to Resolve
-- If a specific container is using too much CPU: `docker restart <container>`
-- If it is a cron job: wait for it to complete
-- If traffic spike: check if it normalises naturally
+## How to resolve
+- Stop any known Game Day load test.
+- Restart only the noisy service after checking logs: `sudo systemctl restart <service>`.
+- Reduce expensive dashboard queries or Prometheus query ranges.
+- If sustained, resize the monitoring server.
 
-## Should I Roll Back?
-Only if the CPU spike started immediately after a deployment.
+## Should I roll back?
+Only roll back if the spike started immediately after a monitoring stack change.
 
 ## Escalation
-If CPU stays above 80% for more than 30 minutes with no clear cause, escalate to team lead.
+Escalate to the platform lead if CPU remains above 80% for 30 minutes.
