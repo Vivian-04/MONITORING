@@ -47,6 +47,16 @@ remote_exec_raw() {
     "${SSH_USER}@${MON_HOST}" "$1"
 }
 
+remote_upload_raw() {
+  local src=$1
+  local dest=$2
+  SSHPASS=$SSH_PASSWORD sshpass -e scp \
+    -o StrictHostKeyChecking=accept-new \
+    -o PreferredAuthentications=password \
+    -o PubkeyAuthentication=no \
+    "$src" "${SSH_USER}@${MON_HOST}:$dest"
+}
+
 remote_exec_root() {
   local command=$1
   local escaped_command
@@ -110,8 +120,7 @@ fi
 GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
 
 REMOTE_DIR=/opt/monitoring
-REMOTE_CLONE_DIR=/tmp/monitoring-repo
-REMOTE_REPO=https://github.com/Vivian-04/MONITORING.git
+UPLOAD_TAR=/tmp/monitoring-upload.tar.gz
 
 echo "Connecting to monitoring server ${SSH_USER}@${MON_HOST}..."
 
@@ -120,10 +129,17 @@ remote_exec_root "mkdir -p ${REMOTE_DIR}"
 remote_exec_root "apt update -y && apt install -y git python3 python3-venv gettext-base curl wget tar gzip unzip"
 
 remote_exec_root "rm -rf ${REMOTE_DIR:?}/*"
-remote_exec_root "rm -rf ${REMOTE_CLONE_DIR}"
-remote_exec_root "git clone ${REMOTE_REPO} ${REMOTE_CLONE_DIR}"
-remote_exec_root "cp -a ${REMOTE_CLONE_DIR}/MONITORING/. ${REMOTE_DIR}/"
-remote_exec_root "rm -rf ${REMOTE_CLONE_DIR}"
+
+echo "Archiving local MONITORING folder..."
+tar -czf "$UPLOAD_TAR" -C ../MONITORING .
+
+echo "Uploading configuration to monitoring server..."
+remote_upload_raw "$UPLOAD_TAR" "$UPLOAD_TAR"
+
+echo "Extracting configuration..."
+remote_exec_root "tar -xzf $UPLOAD_TAR -C ${REMOTE_DIR}/"
+remote_exec_root "rm -f $UPLOAD_TAR"
+rm -f "$UPLOAD_TAR"
 
 remote_exec_root "cat > ${REMOTE_DIR}/.env <<'EOF'
 APP_HOST=${APP_HOST}
