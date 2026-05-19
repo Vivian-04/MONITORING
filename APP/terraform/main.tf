@@ -17,6 +17,7 @@ resource "null_resource" "deploy_monitoring" {
       GITHUB_TOKEN           = var.github_token
       GRAFANA_ADMIN_USER     = var.grafana_admin_user
       GRAFANA_ADMIN_PASSWORD = var.grafana_admin_password
+      SSH_KEY_PATH           = var.ssh_private_key_path
     }
   }
 

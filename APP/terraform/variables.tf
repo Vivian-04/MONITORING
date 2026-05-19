@@ -55,3 +55,9 @@ variable "grafana_admin_password" {
   type        = string
   default     = "admin"
 }
+
+variable "ssh_private_key_path" {
+  description = "Path to the SSH private key used to connect to the monitoring server."
+  type        = string
+  default     = ""
+}

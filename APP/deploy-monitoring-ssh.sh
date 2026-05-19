@@ -16,9 +16,12 @@ if [ -z "${SSH_USER:-}" ]; then
 fi
 SSH_USER=${SSH_USER:-root}
 
-if [ -z "${SSH_PASSWORD:-}" ]; then
+if [ -z "${SSH_PASSWORD:-}" ] && [ -z "${SSH_KEY_PATH:-}" ]; then
   read -rsp "SSH password for monitoring server user (press Enter to use SSH key): " SSH_PASSWORD
   echo
+  if [ -z "$SSH_PASSWORD" ]; then
+    read -rp "Path to SSH private key (press Enter to use default SSH key): " SSH_KEY_PATH
+  fi
 fi
 
 if [ -z "${SUDO_PASSWORD:-}" ]; then
@@ -29,6 +32,11 @@ if [ -n "${SSH_PASSWORD:-}" ] && ! command -v sshpass >/dev/null 2>&1; then
   echo "ERROR: sshpass is required for password-based SSH deployment."
   echo "Install it on the machine running Terraform, for example: sudo apt install -y sshpass"
   exit 1
+fi
+
+SSH_OPTS=(-o StrictHostKeyChecking=accept-new)
+if [ -n "${SSH_KEY_PATH:-}" ]; then
+  SSH_OPTS+=(-i "$SSH_KEY_PATH")
 fi
 
 quote_for_remote() {
@@ -43,9 +51,7 @@ remote_exec_raw() {
       -o PubkeyAuthentication=no \
       "${SSH_USER}@${MON_HOST}" "$1"
   else
-    ssh \
-      -o StrictHostKeyChecking=accept-new \
-      "${SSH_USER}@${MON_HOST}" "$1"
+    ssh "${SSH_OPTS[@]}" "${SSH_USER}@${MON_HOST}" "$1"
   fi
 }
 
@@ -59,9 +65,7 @@ remote_upload_raw() {
       -o PubkeyAuthentication=no \
       "$src" "${SSH_USER}@${MON_HOST}:$dest"
   else
-    scp \
-      -o StrictHostKeyChecking=accept-new \
-      "$src" "${SSH_USER}@${MON_HOST}:$dest"
+    scp "${SSH_OPTS[@]}" "$src" "${SSH_USER}@${MON_HOST}:$dest"
   fi
 }
 
