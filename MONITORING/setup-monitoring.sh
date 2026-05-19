@@ -135,59 +135,62 @@ EOF
 function download_extract_tarball() {
   local url=$1
   local binary=$2
-  local archive="/tmp/monitoring-$(basename "$url")"
+  local archive_dir="$INSTALL_DIR/downloads"
+  local release_dir="$archive_dir/release"
+  local archive="$archive_dir/$(basename "$url")"
 
   if [ ! -x "$INSTALL_DIR/bin/$binary" ]; then
     echo "Downloading $binary from: $url"
-    rm -rf /tmp/monitoring-release
-    mkdir -p /tmp/monitoring-release
+    rm -rf "$archive_dir"
+    mkdir -p "$release_dir"
     curl -fsSL -o "$archive" "$url"
-    tar -xzf "$archive" -C /tmp/monitoring-release
-    local extracted=$(find /tmp/monitoring-release -type f -name "$binary" | head -n 1)
+    tar -xzf "$archive" -C "$release_dir"
+    local extracted=$(find "$release_dir" -type f -name "$binary" | head -n 1)
     if [ -z "$extracted" ]; then
       echo "ERROR: could not find $binary in $archive"
       exit 1
     fi
     mv "$extracted" "$INSTALL_DIR/bin/$binary"
     chmod +x "$INSTALL_DIR/bin/$binary"
-    rm -f "$archive"
-    rm -rf /tmp/monitoring-release
+    rm -rf "$archive_dir"
   fi
 }
 
 function download_extract_grafana() {
   local url=$1
-  local archive="/tmp/monitoring-grafana.tar.gz"
+  local archive_dir="$INSTALL_DIR/downloads"
+  local release_dir="$archive_dir/release"
+  local archive="$archive_dir/grafana.tar.gz"
 
   if [ ! -x "$GRAFANA_HOME/bin/grafana-server" ]; then
     echo "Downloading Grafana from: $url"
-    rm -rf /tmp/monitoring-release
-    mkdir -p /tmp/monitoring-release
+    rm -rf "$archive_dir"
+    mkdir -p "$release_dir"
     curl -fsSL -o "$archive" "$url"
-    tar -xzf "$archive" -C /tmp/monitoring-release
+    tar -xzf "$archive" -C "$release_dir"
     rm -rf "$GRAFANA_HOME"
-    mv /tmp/monitoring-release/grafana-* "$GRAFANA_HOME"
+    mv "$release_dir"/grafana-* "$GRAFANA_HOME"
     mkdir -p "$INSTALL_DIR/grafana/data" "$INSTALL_DIR/grafana/log" "$INSTALL_DIR/grafana/plugins"
     chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR/grafana" "$GRAFANA_HOME"
-    rm -f "$archive"
-    rm -rf /tmp/monitoring-release
+    rm -rf "$archive_dir"
   fi
 }
 
 function download_extract_loki() {
   local url=$1
-  local archive="/tmp/monitoring-loki.zip"
+  local archive_dir="$INSTALL_DIR/downloads"
+  local release_dir="$archive_dir/release"
+  local archive="$archive_dir/loki.zip"
 
   if [ ! -x "$INSTALL_DIR/bin/loki" ]; then
     echo "Downloading Loki from: $url"
-    rm -rf /tmp/monitoring-release
-    mkdir -p /tmp/monitoring-release
+    rm -rf "$archive_dir"
+    mkdir -p "$release_dir"
     curl -fsSL -o "$archive" "$url"
-    unzip -q "$archive" -d /tmp/monitoring-release
-    mv /tmp/monitoring-release/loki-linux-amd64 "$INSTALL_DIR/bin/loki"
+    unzip -q "$archive" -d "$release_dir"
+    mv "$release_dir/loki-linux-amd64" "$INSTALL_DIR/bin/loki"
     chmod +x "$INSTALL_DIR/bin/loki"
-    rm -f "$archive"
-    rm -rf /tmp/monitoring-release
+    rm -rf "$archive_dir"
   fi
 }
 
@@ -195,18 +198,19 @@ function download_extract_zip() {
   local url=$1
   local pattern=$2
   local binary=$3
-  local archive="/tmp/monitoring-$(basename "$url")"
+  local archive_dir="$INSTALL_DIR/downloads"
+  local release_dir="$archive_dir/release"
+  local archive="$archive_dir/$(basename "$url")"
 
   if [ ! -x "$INSTALL_DIR/bin/$binary" ]; then
     echo "Downloading $binary from: $url"
-    rm -rf /tmp/monitoring-release
-    mkdir -p /tmp/monitoring-release
+    rm -rf "$archive_dir"
+    mkdir -p "$release_dir"
     curl -fsSL -o "$archive" "$url"
-    unzip -q "$archive" -d /tmp/monitoring-release
-    mv "/tmp/monitoring-release/$pattern" "$INSTALL_DIR/bin/$binary"
+    unzip -q "$archive" -d "$release_dir"
+    mv "$release_dir/$pattern" "$INSTALL_DIR/bin/$binary"
     chmod +x "$INSTALL_DIR/bin/$binary"
-    rm -f "$archive"
-    rm -rf /tmp/monitoring-release
+    rm -rf "$archive_dir"
   fi
 }
 
