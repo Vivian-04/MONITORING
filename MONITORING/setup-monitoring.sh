@@ -202,7 +202,7 @@ download_extract_tarball "https://github.com/prometheus/alertmanager/releases/do
 
 # Grafana uses a full home path
 
-download_extract_grafana "https://dl.grafana.com/oss/release/grafana-10.1.3.linux-amd64.tar.gz"
+download_extract_grafana "https://dl.grafana.com/oss/release/grafana-10.1.5.linux-amd64.tar.gz"
 
 download_extract_loki "https://github.com/grafana/loki/releases/download/v3.7.2/loki-linux-amd64.zip"
 
