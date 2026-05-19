@@ -131,6 +131,7 @@ function download_extract_tarball() {
   local archive="/tmp/monitoring-$(basename "$url")"
 
   if [ ! -x "$INSTALL_DIR/bin/$binary" ]; then
+    echo "Downloading $binary from: $url"
     rm -rf /tmp/monitoring-release
     mkdir -p /tmp/monitoring-release
     curl -fsSL -o "$archive" "$url"
@@ -150,6 +151,7 @@ function download_extract_grafana() {
   local archive="/tmp/monitoring-grafana.tar.gz"
 
   if [ ! -x "$GRAFANA_HOME/bin/grafana-server" ]; then
+    echo "Downloading Grafana from: $url"
     rm -rf /tmp/monitoring-release
     mkdir -p /tmp/monitoring-release
     curl -fsSL -o "$archive" "$url"
@@ -166,6 +168,7 @@ function download_extract_loki() {
   local archive="/tmp/monitoring-loki.zip"
 
   if [ ! -x "$INSTALL_DIR/bin/loki" ]; then
+    echo "Downloading Loki from: $url"
     rm -rf /tmp/monitoring-release
     mkdir -p /tmp/monitoring-release
     curl -fsSL -o "$archive" "$url"
@@ -182,6 +185,7 @@ function download_extract_zip() {
   local archive="/tmp/monitoring-$(basename "$url")"
 
   if [ ! -x "$INSTALL_DIR/bin/$binary" ]; then
+    echo "Downloading $binary from: $url"
     rm -rf /tmp/monitoring-release
     mkdir -p /tmp/monitoring-release
     curl -fsSL -o "$archive" "$url"
