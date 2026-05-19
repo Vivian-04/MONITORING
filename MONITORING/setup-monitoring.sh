@@ -70,6 +70,13 @@ EOF
 
 echo "Created .env with the monitoring target and Slack webhook."
 
+echo "Cleaning up any older downloaded packages and system cache to free up disk space..."
+rm -f /tmp/monitoring-*
+rm -rf /tmp/monitoring-release
+if command -v apt-get >/dev/null; then
+  apt-get clean
+fi
+
 apt update -y
 apt install -y curl wget tar gzip unzip git python3 python3-venv gettext-base
 
@@ -143,6 +150,8 @@ function download_extract_tarball() {
     fi
     mv "$extracted" "$INSTALL_DIR/bin/$binary"
     chmod +x "$INSTALL_DIR/bin/$binary"
+    rm -f "$archive"
+    rm -rf /tmp/monitoring-release
   fi
 }
 
@@ -160,6 +169,8 @@ function download_extract_grafana() {
     mv /tmp/monitoring-release/grafana-* "$GRAFANA_HOME"
     mkdir -p "$INSTALL_DIR/grafana/data" "$INSTALL_DIR/grafana/log" "$INSTALL_DIR/grafana/plugins"
     chown -R "$SERVICE_USER":"$SERVICE_USER" "$INSTALL_DIR/grafana" "$GRAFANA_HOME"
+    rm -f "$archive"
+    rm -rf /tmp/monitoring-release
   fi
 }
 
@@ -175,6 +186,8 @@ function download_extract_loki() {
     unzip -q "$archive" -d /tmp/monitoring-release
     mv /tmp/monitoring-release/loki-linux-amd64 "$INSTALL_DIR/bin/loki"
     chmod +x "$INSTALL_DIR/bin/loki"
+    rm -f "$archive"
+    rm -rf /tmp/monitoring-release
   fi
 }
 
@@ -192,6 +205,8 @@ function download_extract_zip() {
     unzip -q "$archive" -d /tmp/monitoring-release
     mv "/tmp/monitoring-release/$pattern" "$INSTALL_DIR/bin/$binary"
     chmod +x "$INSTALL_DIR/bin/$binary"
+    rm -f "$archive"
+    rm -rf /tmp/monitoring-release
   fi
 }
 
