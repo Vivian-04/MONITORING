@@ -132,7 +132,32 @@ fi
 GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
 
 REMOTE_DIR=/opt/monitoring
-UPLOAD_TAR_LOCAL=./monitoring-upload.tar.gz
+# Find the MONITORING source directory dynamically (handles casing and relative depth variations)
+MON_SOURCE_DIR=""
+for candidate in "../MONITORING" "../monitoring" "../../MONITORING" "../../monitoring" "./MONITORING" "./monitoring" "../" "../../"; do
+  # Check if this directory contains setup-monitoring.sh inside a MONITORING subfolder or is the MONITORING folder itself
+  if [ -d "$candidate" ] && [ -f "$candidate/setup-monitoring.sh" ]; then
+    MON_SOURCE_DIR=$(cd "$candidate" && pwd)
+    break
+  elif [ -d "$candidate/MONITORING" ] && [ -f "$candidate/MONITORING/setup-monitoring.sh" ]; then
+    MON_SOURCE_DIR=$(cd "$candidate/MONITORING" && pwd)
+    break
+  elif [ -d "$candidate/monitoring" ] && [ -f "$candidate/monitoring/setup-monitoring.sh" ]; then
+    MON_SOURCE_DIR=$(cd "$candidate/monitoring" && pwd)
+    break
+  fi
+done
+
+if [ -z "$MON_SOURCE_DIR" ]; then
+  echo "ERROR: Could not find the MONITORING/monitoring folder relative to the script."
+  echo "Current directory: $(pwd)"
+  echo "Directory contents:"
+  ls -la
+  exit 1
+fi
+
+SCRIPT_DIR=$(cd "$(dirname "$0")" && pwd)
+UPLOAD_TAR_LOCAL="$SCRIPT_DIR/monitoring-upload.tar.gz"
 UPLOAD_TAR_REMOTE=/tmp/monitoring-upload.tar.gz
 
 echo "Connecting to monitoring server ${SSH_USER}@${MON_HOST}..."
@@ -143,8 +168,8 @@ remote_exec_root "apt update -y && apt install -y git python3 python3-venv gette
 
 remote_exec_root "rm -rf ${REMOTE_DIR:?}/*"
 
-echo "Archiving local MONITORING folder..."
-(cd ../MONITORING && tar -czf ../APP/monitoring-upload.tar.gz .)
+echo "Archiving local MONITORING folder from $MON_SOURCE_DIR..."
+(cd "$MON_SOURCE_DIR" && tar -czf "$UPLOAD_TAR_LOCAL" .)
 
 echo "Uploading configuration to monitoring server..."
 remote_upload_raw "$UPLOAD_TAR_LOCAL" "$UPLOAD_TAR_REMOTE"
