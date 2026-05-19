@@ -17,19 +17,15 @@ fi
 SSH_USER=${SSH_USER:-root}
 
 if [ -z "${SSH_PASSWORD:-}" ]; then
-  read -rsp "SSH password for monitoring server user: " SSH_PASSWORD
+  read -rsp "SSH password for monitoring server user (press Enter to use SSH key): " SSH_PASSWORD
   echo
-fi
-if [ -z "$SSH_PASSWORD" ]; then
-  echo "ERROR: SSH password cannot be empty."
-  exit 1
 fi
 
 if [ -z "${SUDO_PASSWORD:-}" ]; then
   SUDO_PASSWORD=$SSH_PASSWORD
 fi
 
-if ! command -v sshpass >/dev/null 2>&1; then
+if [ -n "${SSH_PASSWORD:-}" ] && ! command -v sshpass >/dev/null 2>&1; then
   echo "ERROR: sshpass is required for password-based SSH deployment."
   echo "Install it on the machine running Terraform, for example: sudo apt install -y sshpass"
   exit 1
@@ -40,21 +36,33 @@ quote_for_remote() {
 }
 
 remote_exec_raw() {
-  SSHPASS=$SSH_PASSWORD sshpass -e ssh \
-    -o StrictHostKeyChecking=accept-new \
-    -o PreferredAuthentications=password \
-    -o PubkeyAuthentication=no \
-    "${SSH_USER}@${MON_HOST}" "$1"
+  if [ -n "${SSH_PASSWORD:-}" ]; then
+    SSHPASS=$SSH_PASSWORD sshpass -e ssh \
+      -o StrictHostKeyChecking=accept-new \
+      -o PreferredAuthentications=password \
+      -o PubkeyAuthentication=no \
+      "${SSH_USER}@${MON_HOST}" "$1"
+  else
+    ssh \
+      -o StrictHostKeyChecking=accept-new \
+      "${SSH_USER}@${MON_HOST}" "$1"
+  fi
 }
 
 remote_upload_raw() {
   local src=$1
   local dest=$2
-  SSHPASS=$SSH_PASSWORD sshpass -e scp \
-    -o StrictHostKeyChecking=accept-new \
-    -o PreferredAuthentications=password \
-    -o PubkeyAuthentication=no \
-    "$src" "${SSH_USER}@${MON_HOST}:$dest"
+  if [ -n "${SSH_PASSWORD:-}" ]; then
+    SSHPASS=$SSH_PASSWORD sshpass -e scp \
+      -o StrictHostKeyChecking=accept-new \
+      -o PreferredAuthentications=password \
+      -o PubkeyAuthentication=no \
+      "$src" "${SSH_USER}@${MON_HOST}:$dest"
+  else
+    scp \
+      -o StrictHostKeyChecking=accept-new \
+      "$src" "${SSH_USER}@${MON_HOST}:$dest"
+  fi
 }
 
 remote_exec_root() {
@@ -67,8 +75,12 @@ remote_exec_root() {
   if [ "$SSH_USER" = "root" ]; then
     remote_exec_raw "bash -lc '$escaped_command'"
   else
-    escaped_sudo_password=$(quote_for_remote "$SUDO_PASSWORD")
-    remote_exec_raw "printf '%s\n' '$escaped_sudo_password' | sudo -S -p '' bash -lc '$escaped_command'"
+    if [ -n "${SUDO_PASSWORD:-}" ]; then
+      escaped_sudo_password=$(quote_for_remote "$SUDO_PASSWORD")
+      remote_exec_raw "printf '%s\n' '$escaped_sudo_password' | sudo -S -p '' bash -lc '$escaped_command'"
+    else
+      remote_exec_raw "sudo bash -lc '$escaped_command'"
+    fi
   fi
 }
 
