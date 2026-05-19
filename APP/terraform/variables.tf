@@ -13,6 +13,7 @@ variable "ssh_password" {
   description = "SSH password for the monitoring server user."
   type        = string
   sensitive   = true
+  default     = ""
 }
 
 variable "sudo_password" {
@@ -59,5 +60,4 @@ variable "grafana_admin_password" {
 variable "ssh_private_key_path" {
   description = "Path to the SSH private key used to connect to the monitoring server."
   type        = string
-  default     = ""
 }
