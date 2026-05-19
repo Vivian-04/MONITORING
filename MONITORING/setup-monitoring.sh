@@ -225,7 +225,7 @@ download_extract_grafana "https://dl.grafana.com/oss/release/grafana-10.1.5.linu
 
 download_extract_loki "https://github.com/grafana/loki/releases/download/v3.7.2/loki-linux-amd64.zip"
 
-download_extract_tarball "https://github.com/grafana/tempo/releases/download/v1.8.0/tempo_1.8.0_linux_amd64.tar.gz" "tempo" "tempo-1.8.0.linux-amd64"
+download_extract_tarball "https://github.com/grafana/tempo/releases/download/v2.4.1/tempo_2.4.1_linux_amd64.tar.gz" "tempo" "tempo-2.4.1-linux-amd64"
 download_extract_tarball "https://github.com/prometheus/node_exporter/releases/download/v1.7.0/node_exporter-1.7.0.linux-amd64.tar.gz" "node_exporter" "node_exporter-1.7.0.linux-amd64"
 download_extract_tarball "https://github.com/prometheus/blackbox_exporter/releases/download/v0.24.0/blackbox_exporter-0.24.0.linux-amd64.tar.gz" "blackbox_exporter" "blackbox_exporter-0.24.0.linux-amd64"
 download_extract_tarball "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.92.0/otelcol-contrib_0.92.0_linux_amd64.tar.gz" "otelcol-contrib" "otelcol-contrib_0.92.0_linux_amd64"
