@@ -120,7 +120,8 @@ fi
 GRAFANA_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-admin}
 
 REMOTE_DIR=/opt/monitoring
-UPLOAD_TAR=/tmp/monitoring-upload.tar.gz
+UPLOAD_TAR_LOCAL=./monitoring-upload.tar.gz
+UPLOAD_TAR_REMOTE=/tmp/monitoring-upload.tar.gz
 
 echo "Connecting to monitoring server ${SSH_USER}@${MON_HOST}..."
 
@@ -131,15 +132,15 @@ remote_exec_root "apt update -y && apt install -y git python3 python3-venv gette
 remote_exec_root "rm -rf ${REMOTE_DIR:?}/*"
 
 echo "Archiving local MONITORING folder..."
-tar -czf "$UPLOAD_TAR" -C ../MONITORING .
+(cd ../MONITORING && tar -czf ../APP/monitoring-upload.tar.gz .)
 
 echo "Uploading configuration to monitoring server..."
-remote_upload_raw "$UPLOAD_TAR" "$UPLOAD_TAR"
+remote_upload_raw "$UPLOAD_TAR_LOCAL" "$UPLOAD_TAR_REMOTE"
 
 echo "Extracting configuration..."
-remote_exec_root "tar -xzf $UPLOAD_TAR -C ${REMOTE_DIR}/"
-remote_exec_root "rm -f $UPLOAD_TAR"
-rm -f "$UPLOAD_TAR"
+remote_exec_root "tar -xzf $UPLOAD_TAR_REMOTE -C ${REMOTE_DIR}/"
+remote_exec_root "rm -f $UPLOAD_TAR_REMOTE"
+rm -f "$UPLOAD_TAR_LOCAL"
 
 remote_exec_root "cat > ${REMOTE_DIR}/.env <<'EOF'
 APP_HOST=${APP_HOST}
